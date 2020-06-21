@@ -153,5 +153,5 @@ alias gs='git status'
 ulimit -c unlimited
 
 #dotfile git
-#Config dotfilecfg with command `dotfilecfg config --local status.showUntrackedFiles no`
+#Config dotfilecfg with command `dcfg config --local status.showUntrackedFiles no`
 alias dcfg='/usr/bin/git --git-dir=$HOME/MyFiles/dotfiles/ --work-tree=$HOME'
