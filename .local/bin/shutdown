@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ACTION=$(echo -e "cancel\nshutdown\nreboot" | dmenu -l 3)
+ACTION=$(echo -e "cancel\nshutdown\nreboot" | dmenu -c -l 3 -bw 5)
 case $ACTION in
     "cancel")
     exit 0;;
