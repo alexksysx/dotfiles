@@ -315,7 +315,6 @@ globalkeys = gears.table.join(
     awful.key({ modkey,           }, "s",      function ()
         local c = client.focus
         c.sticky = not c.sticky
-        
     end,
               {description = "make sticky", group = "client"}),
     awful.key({ modkey, "Shift"   }, "j", function () awful.client.swap.byidx(  1)    end,
@@ -638,10 +637,8 @@ client.connect_signal("manage", function(c)
     if parent_client and is_terminal(parent_client) then
         parent_client.child_resize=c
         parent_client.minimized = true
-
         c:connect_signal("unmanage", function() parent_client.minimized = false end)
-       
-      -- c.floating=true
+        -- c.floating=true
         copy_size(c, parent_client)
     end
 end)
