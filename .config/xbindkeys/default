@@ -1,0 +1,84 @@
+###########################
+# xbindkeys configuration #
+###########################
+#
+# Version: 0.1.3
+#
+# If you edit this, do not forget to uncomment any lines that you change.
+# The pound(#) symbol may be used anywhere for comments.
+#
+# A list of keys is in /usr/include/X11/keysym.h and in
+# /usr/include/X11/keysymdef.h 
+# The XK_ is not needed. 
+#
+# List of modifier (on my keyboard): 
+#   Control, Shift, Mod1 (Alt), Mod2 (NumLock), 
+#   Mod3 (CapsLock), Mod4, Mod5 (Scroll). 
+#
+# Another way to specifie a key is to use 'xev' and set the 
+# keycode with c:nnn or the modifier with m:nnn where nnn is 
+# the keycode or the state returned by xev 
+#
+# This file is created by xbindkey_config 
+# The structure is : 
+# # Remark 
+# "command" 
+# m:xxx + c:xxx 
+# Shift+... 
+
+
+
+
+#keystate_numlock = enable
+#keystate_scrolllock = enable
+#keystate_capslock = enable
+
+
+
+#-volume
+"pulsemixer --change-volume -10 ; statuskill"
+    m:0x0 + c:122
+    XF86AudioLowerVolume 
+
+#+volume
+"pulsemixer --change-volume +10 ; statuskill"
+    m:0x0 + c:123
+    XF86AudioRaiseVolume 
+
+#LangStatus
+"statuskill"
+    m:0x1 + c:50
+    Shift + Shift_L 
+
+#Control
+"gnome-system-monitor"
+    m:0x5 + c:9
+    Control+Shift + Escape 
+
+#Google Chrome
+"google-chrome"
+    m:0x40 + c:42
+    Mod4 + g 
+
+#CMUS start/play/pause
+"cmus-media-play"
+    m:0x40 + c:70
+    Mod4 + F4 
+
+#CMUS-prev
+"cmus-remote --prev"
+    m:0x40 + c:72
+    Mod4 + F6 
+
+#CMUS Next
+"cmus-remote --next"
+    m:0x40 + c:73
+    Mod4 + F7 
+
+#Screenshot of some rectangle
+"scrot '/tmp/%F_%T_$wx$h.png' -s -e 'xclip -selection clipboard -target image/png -i $f'"
+    m:0x5 + c:107
+    Control+Shift + Print 
+
+#
+# End of xbindkeys configuration

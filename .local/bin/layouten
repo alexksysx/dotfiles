@@ -1,0 +1,4 @@
+#!/bin/bash
+
+CUR_LANG=$(xkb-switch)
+[[ "$CUR_LANG" = "ru" ]] && xkb-switch -n

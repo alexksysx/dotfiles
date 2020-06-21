@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+
+parser = argparse.ArgumentParser(description='Get weather')
+parser.add_argument('-l', '--language', help='Set output language')
+parser.add_argument('-c', '--city', help='Set city')
+namespace = parser.parse_args()
+str = "curl wttr.in/"
+if (not namespace.city == None):
+    str += namespace.city
+if (not namespace.language == None):
+    str = str + "?lang=" + namespace.language
+os.system(str)

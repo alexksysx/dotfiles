@@ -1,0 +1,11 @@
+# Wev-site section
+http://16-bits.ru/feed/ "~16-bits" "web-site"
+https://habr.com/ru/rss/flows/develop/top/weekly/?fl=ru "~HABR разработка" "web-site"
+
+# YouTube section
+https://www.youtube.com/feeds/videos.xml?channel_id=UC17vsYVoIwch5UzPar1LDmQ "youtube"  #ymfah
+https://www.youtube.com/feeds/videos.xml?channel_id=UC2eYFnH61tmytImy1mTYvhA "youtube"  #luke smith
+https://www.youtube.com/feeds/videos.xml?channel_id=UCVls1GmFKf6WlTraIb_IaJg "youtube"  #DT
+https://www.youtube.com/feeds/videos.xml?channel_id=UC6cqazSR6CnVMClY0bJI0Lg "youtube"  #BadComedian
+https://www.youtube.com/feeds/videos.xml?channel_id=UC5dgoavpIertLkNDDITDoBQ "youtube"  #Bocha
+https://www.youtube.com/feeds/videos.xml?channel_id=UCpFcHE36IoySjYj1Rytxyog "youtube"  #WarOwl

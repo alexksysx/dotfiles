@@ -1,0 +1,11 @@
+#!/bin/bash
+
+ACTION=$(echo -e "cancel\nshutdown\nreboot" | dmenu -l 3)
+case $ACTION in
+    "cancel")
+    exit 0;;
+    "shutdown")
+    systemctl poweroff;;
+    "reboot")
+    systemctl reboot;;
+esac

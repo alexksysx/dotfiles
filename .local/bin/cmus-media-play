@@ -1,0 +1,11 @@
+#!/bin/env bash
+
+test -z $(pgrep cmus) && tmux new -d -s cmus cmus
+
+status=$(cmus-remote -Q | grep status | cut -d ' ' -f 2)
+
+case $status in
+    "stopped") cmus-remote -S && cmus-remote --play ;;
+    "paused") cmus-remote --play ;;
+    "playing") cmus-remote --pause ;;
+esac

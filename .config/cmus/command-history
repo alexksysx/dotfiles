@@ -1,0 +1,17 @@
+q
+save -p
+colorscheme solarized-dark
+colorscheme theme
+colorscheme 
+colorscheme zenburn
+colorscheme night
+colorscheme jellybeans
+colorscheme cyan
+colorscheme gray-88
+colorscheme green-mono-88
+colorscheme gruvbox
+colorscheme default
+clear
+help
+?
+quit

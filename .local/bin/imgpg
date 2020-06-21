@@ -1,0 +1,22 @@
+#!/bin/bash
+
+DIR="$HOME/Img/encrypted"
+
+[[ -z "$1" ]] || DIR="$1"
+
+cd $DIR
+
+FILES=$(ls *.[pg][pg][pg])
+
+mkdir /tmp/imgpg
+for STR in $FILES 
+do
+    NEWFILE=$(echo $STR | sed 's/.pgp//g')
+    echo $NEWFILE
+    gpg --output /tmp/imgpg/$NEWFILE --decrypt $STR 2>/dev/null 
+done
+sxiv -t /tmp/imgpg
+
+cd /tmp/imgpg/
+shred -u *
+rm -rf /tmp/imgpg
