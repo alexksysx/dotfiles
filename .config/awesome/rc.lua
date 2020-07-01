@@ -425,7 +425,7 @@ globalkeys = gears.table.join(
 
     -- dmenu
     awful.key({ modkey },            "d",     function ()
-    awful.util.spawn("dmenu_run -hp pcmanfm,shutdown")
+    awful.util.spawn("dmenu_run -hp pcmanfm,powercontrol")
     awful.util.spawn("layouten") end,
         {description="run dmenu", group="launcher"}),
 
