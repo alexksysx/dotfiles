@@ -34,6 +34,12 @@ if awesome.startup_errors then
                      text = awesome.startup_errors })
 end
 
+-- Kill autostarted soft before restart
+awesome.connect_signal("exit", function()
+    awful.spawn.with_shell("killall compton")
+end)
+
+
 -- Handle runtime errors after startup
 do
     local in_error = false
@@ -314,7 +320,9 @@ globalkeys = gears.table.join(
     -- Layout manipulation
     awful.key({ modkey,           }, "s",      function ()
         local c = client.focus
-        c.sticky = not c.sticky
+        if c then
+            c.sticky = not c.sticky
+        end
     end,
               {description = "make sticky", group = "client"}),
     awful.key({ modkey, "Shift"   }, "j", function () awful.client.swap.byidx(  1)    end,
@@ -382,7 +390,7 @@ globalkeys = gears.table.join(
 
     -- dmenu
     awful.key({ modkey },            "d",     function ()
-    awful.util.spawn("dmenu_run")
+    awful.util.spawn("dmenu_run -hp pcmanfm,gnome-system-monitor,shutdown")
     awful.util.spawn("layouten") end,
         {description="run dmenu", group="launcher"}),
 
@@ -560,6 +568,7 @@ awful.rules.rules = {
           "Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
           "Wpa_gui",
           "veromix",
+          "zenity",
           "xtightvncviewer"},
 
         -- Note that the name property shown in xprop might be set slightly after creation of the client
@@ -627,6 +636,9 @@ client.connect_signal("property::floating", function(c)
 end)
 
 -- Swallow
+
+awesome_config_folder="/home/alexksysx/.config/awesome/"
+
 client.connect_signal("property::size", check_resize_client)
 client.connect_signal("property::position", check_resize_client)
 client.connect_signal("manage", function(c)
@@ -634,12 +646,18 @@ client.connect_signal("manage", function(c)
         return
     end
     local parent_client=awful.client.focus.history.get(c.screen, 1)
+
     if parent_client and is_terminal(parent_client) then
         parent_client.child_resize=c
         parent_client.minimized = true
-        c:connect_signal("unmanage", function() parent_client.minimized = false end)
-        -- c.floating=true
+        parent_client:swap(c)
+        c:connect_signal("unmanage", function()
+            parent_client.minimized = false 
+--            c:swap(parent_client)
+        end)
+      -- c.floating=true
         copy_size(c, parent_client)
+--        awful.spawn.with_shell("notify-send " .. c...  "")
     end
 end)
 -- Swallow end
