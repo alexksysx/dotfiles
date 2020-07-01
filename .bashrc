@@ -112,6 +112,8 @@ if ! shopt -oq posix; then
   fi
 fi
 
+complete -cf sudo
+
 #Software
 export EDITOR=vim
 

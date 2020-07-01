@@ -1,3 +1,4 @@
+
 -- If LuaRocks is installed, make sure that packages installed through it are
 -- found (e.g. lgi). If LuaRocks is not installed, do nothing.
 pcall(require, "luarocks.loader")
@@ -18,8 +19,37 @@ local hotkeys_popup = require("awful.hotkeys_popup")
 -- when client with a matching name is opened:
 require("awful.hotkeys_popup.keys")
 
+--basic config
+--distro: arch, debian
+--pctype: pc, laptop
+--Create file "envmodule.lua" with:
+--local envmodule = {}
+--function envmodule.distro()
+--    return "your_distro"
+--end
+--function envmodule.pctype()
+--    return "laptop or pc"
+--end
+--return envmodule
+
+envar = require("envmodule")
+local distro = envar.distro()
+local pctype = envar.pctype()
+
+
 -- Load Debian menu entries
-local debian = require("debian.menu")
+local debian = ""
+if distro == "debian" then
+    debian = require("debian.menu")
+end
+
+-- Run following command to generate or regenerate menu after installing some application
+-- xdg_menu --format awesome --root-menu /etc/xdg/menus/arch-applications.menu > ~/.config/awesome/archmenu.lua
+local xdg_menu = ""
+if distro == "arch" then
+    xdg_menu = require("archmenu")
+end
+
 local has_fdo, freedesktop = pcall(require, "freedesktop")
 
 -- Network widget
@@ -33,12 +63,6 @@ if awesome.startup_errors then
                      title = "Oops, there were errors during startup!",
                      text = awesome.startup_errors })
 end
-
--- Kill autostarted soft before restart
-awesome.connect_signal("exit", function()
-    awful.spawn.with_shell("killall compton")
-end)
-
 
 -- Handle runtime errors after startup
 do
@@ -112,7 +136,8 @@ if has_fdo then
         before = { menu_awesome },
         after =  { menu_terminal }
     })
-else
+else 
+    if distro == "debian" then
     mymainmenu = awful.menu({
         items = {
                   menu_awesome,
@@ -120,6 +145,15 @@ else
                   menu_terminal,
                 }
     })
+    else
+        if distro == "arch" then
+           mymainmenu = awful.menu({ items = { { "awesome", myawesomemenu, beautiful.awesome_icon },
+                                    { "Applications", xdgmenu },
+                                    { "open terminal", terminal }
+                                  }
+                        }) 
+        end
+    end
 end
 
 -- Remove launcher from left corner
@@ -285,7 +319,11 @@ end)
 
 -- {{{ Mouse bindings
 root.buttons(gears.table.join(
-    awful.button({ }, 3, function () mymainmenu:toggle() end),
+    awful.button({ }, 3, function () 
+        if mymainmenu ~= nil then
+            mymainmenu:toggle()
+        end
+    end),
     awful.button({ }, 4, awful.tag.viewnext),
     awful.button({ }, 5, awful.tag.viewprev)
 ))
@@ -320,9 +358,7 @@ globalkeys = gears.table.join(
     -- Layout manipulation
     awful.key({ modkey,           }, "s",      function ()
         local c = client.focus
-        if c then
-            c.sticky = not c.sticky
-        end
+        c.sticky = not c.sticky
     end,
               {description = "make sticky", group = "client"}),
     awful.key({ modkey, "Shift"   }, "j", function () awful.client.swap.byidx(  1)    end,
@@ -345,10 +381,9 @@ globalkeys = gears.table.join(
         {description = "go back", group = "client"}),
 
     -- My bindings
-    awful.key({ modkey,           }, "g",      function () awful.spawn("google-chrome --password-store=gnome") end,
+    awful.key({ modkey,           }, "g",      function () awful.spawn("google-chrome-stable --password-store=gnome") end,
               {description = "open google chrome", group = "launcher"}),
-
-    awful.key({}, "Print", function () awful.spawn("scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/Img/screen'") end,
+    awful.key({}, "Print", function () awful.spawn("scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/img/screen'") end,
               {description = "make screenshot", group = "awesome"}),
 
     -- Standard program
@@ -390,7 +425,7 @@ globalkeys = gears.table.join(
 
     -- dmenu
     awful.key({ modkey },            "d",     function ()
-    awful.util.spawn("dmenu_run -hp pcmanfm,gnome-system-monitor,shutdown")
+    awful.util.spawn("dmenu_run -hp pcmanfm,shutdown")
     awful.util.spawn("layouten") end,
         {description="run dmenu", group="launcher"}),
 
@@ -466,6 +501,16 @@ end)
         end ,
         {description = "(un)maximize horizontally", group = "client"})
 )
+
+--Bind keys for laptop
+if pctype == "laptop" then
+    globalkeys = gears.table.join(globalkeys,
+        awful.key({ }, "XF86MonBrightnessDown", function ()
+                  awful.util.spawn("xbacklight -dec 10") end),
+        awful.key({ }, "XF86MonBrightnessUp", function ()
+                awful.util.spawn("xbacklight -inc 10") end)
+    )
+end
 
 -- Bind all key numbers to tags.
 -- Be careful: we use keycodes to make it work on any keyboard layout.
@@ -568,7 +613,6 @@ awful.rules.rules = {
           "Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
           "Wpa_gui",
           "veromix",
-          "zenity",
           "xtightvncviewer"},
 
         -- Note that the name property shown in xprop might be set slightly after creation of the client
@@ -636,9 +680,6 @@ client.connect_signal("property::floating", function(c)
 end)
 
 -- Swallow
-
-awesome_config_folder="/home/alexksysx/.config/awesome/"
-
 client.connect_signal("property::size", check_resize_client)
 client.connect_signal("property::position", check_resize_client)
 client.connect_signal("manage", function(c)
@@ -646,18 +687,12 @@ client.connect_signal("manage", function(c)
         return
     end
     local parent_client=awful.client.focus.history.get(c.screen, 1)
-
     if parent_client and is_terminal(parent_client) then
         parent_client.child_resize=c
         parent_client.minimized = true
-        parent_client:swap(c)
-        c:connect_signal("unmanage", function()
-            parent_client.minimized = false 
---            c:swap(parent_client)
-        end)
-      -- c.floating=true
+        c:connect_signal("unmanage", function() parent_client.minimized = false end)
+        -- c.floating=true
         copy_size(c, parent_client)
---        awful.spawn.with_shell("notify-send " .. c...  "")
     end
 end)
 -- Swallow end
@@ -711,9 +746,17 @@ client.connect_signal("focus", function(c) c.border_color = beautiful.border_foc
 client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
 -- }}}
 
+
 -- Autostart Apps
-awful.spawn.with_shell("compton --backend glx --paint-on-overlay --vsync opengl-swc")
+if distro == "debian" then
+    awful.spawn.with_shell("compton --backend glx --paint-on-overlay --vsync opengl-swc")
+end
+
+if distro == "arch" then
+    awful.spawn.with_shell("compton --backend glx --vsync")
+end
+
 awful.spawn.with_shell("xwallpaper --stretch ~/.local/wall/wall.*")
 awful.spawn.with_shell("xinput --set-prop 8 'libinput Accel Speed' -0.3")
-awful.spawn.with_shell("monoff")
+--awful.spawn.with_shell("monoff")
 awful.spawn.with_shell("gnome-keyring-daemon --start")

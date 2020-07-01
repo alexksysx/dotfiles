@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR="$HOME/Img/encrypted"
+DIR="$HOME/img/encrypted"
 
 [[ -z "$1" ]] || DIR="$1"
 
