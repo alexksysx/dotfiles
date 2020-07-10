@@ -35,6 +35,7 @@ require("awful.hotkeys_popup.keys")
 envar = require("envmodule")
 local distro = envar.distro()
 local pctype = envar.pctype()
+local swallowEnabled = false
 
 
 -- Load Debian menu entries
@@ -82,7 +83,8 @@ end
 
 -- {{{ Variable definitions
 -- Themes define colours, icons, font and wallpapers.
-beautiful.init(gears.filesystem.get_themes_dir() .. "default/theme.lua")
+--beautiful.init(gears.filesystem.get_themes_dir() .. "default/theme.lua")
+beautiful.init(gears.filesystem.get_configuration_dir() .. "mytheme.lua")
 
 -- This is used later as the default terminal and editor to run.
 --terminal = "x-terminal-emulator"
@@ -385,6 +387,11 @@ globalkeys = gears.table.join(
               {description = "open google chrome", group = "launcher"}),
     awful.key({}, "Print", function () awful.spawn("scrot '%Y-%m-%d-%T_$wx$h_scrot.png' -e 'mv $f ~/img/screen'") end,
               {description = "make screenshot", group = "awesome"}),
+    awful.key({ modkey, "Shift"   }, "s", 
+        function ()
+            swallowEnabled = not swallowEnabled           
+        end,
+        {description = "toggle swallow", group = "awesome"}),
 
     -- Standard program
     awful.key({ modkey,           }, "Return", function () awful.spawn(terminal) end,
@@ -683,6 +690,9 @@ end)
 client.connect_signal("property::size", check_resize_client)
 client.connect_signal("property::position", check_resize_client)
 client.connect_signal("manage", function(c)
+    if (not swallowEnabled) then
+        return
+    end
     if is_terminal(c) then
         return
     end
@@ -756,7 +766,7 @@ if distro == "arch" then
     awful.spawn.with_shell("compton --backend glx --vsync")
 end
 
-awful.spawn.with_shell("xwallpaper --stretch ~/.local/wall/wall.*")
+--awful.spawn.with_shell("xwallpaper --stretch ~/.local/wall/wall.*")
 awful.spawn.with_shell("xinput --set-prop 8 'libinput Accel Speed' -0.3")
 --awful.spawn.with_shell("monoff")
 awful.spawn.with_shell("gnome-keyring-daemon --start")
