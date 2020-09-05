@@ -1,5 +1,14 @@
 #!/bin/bash
 
+function remove_img() {
+    cd /tmp/imgpg/
+    shred -u *
+    rm -rf /tmp/imgpg
+    exit 0
+}
+
+trap remove_img SIGHUP SIGINT SIGQUIT SIGABRT SIGTERM 
+
 DIR="$HOME/img/encrypted"
 
 [[ -z "$1" ]] || DIR="$1"
@@ -16,7 +25,4 @@ do
     gpg --output /tmp/imgpg/$NEWFILE --decrypt $STR 2>/dev/null 
 done
 sxiv -t /tmp/imgpg
-
-cd /tmp/imgpg/
-shred -u *
-rm -rf /tmp/imgpg
+remove_img
