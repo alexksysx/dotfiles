@@ -7,6 +7,8 @@ endif
 call plug#begin()
     Plug 'junegunn/goyo.vim'
     Plug 'sonph/onehalf', {'rtp': 'vim/'}
+    Plug 'preservim/nerdtree' |
+            \ Plug 'Xuyuanp/nerdtree-git-plugin'
 "    Plug 'valloric/youcompleteme'
 call plug#end()
 
@@ -63,6 +65,8 @@ call plug#end()
 
 "Turn on Goyo
     map <C-G> :Goyo<CR>
+"Open NERDTree
+    map <C-n> :NERDTreeToggle<CR>
 
 "Goyo on start settings
     function! s:goyo_enter()
