@@ -150,6 +150,8 @@ alias ..='cd ..'
 alias cmus='tmux attach-session -t cmus || tmux new-session -A -D -s cmus "$(which cmus)"'
 #Git status alias
 alias gs='git status'
+#Sudo edit
+alias sudoedit='sudo -e'
 
 #debug dwm
 ulimit -c unlimited
@@ -157,3 +159,8 @@ ulimit -c unlimited
 #dotfile git
 #Config dotfilecfg with command `dcfg config --local status.showUntrackedFiles no`
 alias dcfg='/usr/bin/git --git-dir=$HOME/MyFiles/dotfiles/ --work-tree=$HOME'
+#alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
+#alias winecfg='WINEARCH=win32 WINEPREFIX=~/win32 winecfg'
+#alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
+#alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
+#alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
