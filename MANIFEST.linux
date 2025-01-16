@@ -1,2 +1,3 @@
 .config/user-dirs.dirs|symlink|.config
 .bashrc|symlink|
+.gdbinit|symlink|
