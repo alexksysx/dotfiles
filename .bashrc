@@ -115,7 +115,7 @@ fi
 complete -cf sudo
 
 #Software
-export EDITOR=vim
+export EDITOR=nvim
 
 #XDG dir for user
 export XDG_CONFIG_HOME=$HOME/.config
@@ -136,7 +136,7 @@ export WGETRC="$XDG_CONFIG_HOME/wgetrc"
 export _JAVA_AWT_WM_NONREPARENTING=1
 
 
-export PATH=$PATH:$HOME/.local/bin:/snap/bin
+export PATH=$PATH:$HOME/.local/bin:/snap/bin:$HOME/.config/emacs/bin/
 #set vimode
 set -o vi
 
@@ -158,9 +158,14 @@ ulimit -c unlimited
 
 #dotfile git
 #Config dotfilecfg with command `dcfg config --local status.showUntrackedFiles no`
-alias dcfg='/usr/bin/git --git-dir=$HOME/MyFiles/dotfiles/ --work-tree=$HOME'
+#alias dcfg='/usr/bin/git --git-dir=$HOME/MyFiles/dotfiles/ --work-tree=$HOME'
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
 #alias winecfg='WINEARCH=win32 WINEPREFIX=~/win32 winecfg'
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+eval "$(fzf --bash)"
+export BAT_THEME="Visual Studio Dark+"
+export EDITOR=nvim
+export JAVA_HOME=$(readlink -f /usr/bin/javac | sed "s:/bin/javac::")
