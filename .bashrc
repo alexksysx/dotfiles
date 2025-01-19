@@ -148,10 +148,13 @@ shopt -s autocd
 alias ..='cd ..'
 #CMUS alias
 alias cmus='tmux attach-session -t cmus || tmux new-session -A -D -s cmus "$(which cmus)"'
-#Git status alias
-alias gs='git status'
 #Sudo edit
 alias sudoedit='sudo -e'
+
+## GIT
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
 
 #debug dwm
 ulimit -c unlimited
