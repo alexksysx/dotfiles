@@ -1,3 +1,4 @@
-.config/user-dirs.dirs|symlink|.config
+.config/user-dirs.dirs|symlink|
+.config/nvim|symlink|
 .bashrc|symlink|
 .gdbinit|symlink|
