@@ -23,3 +23,5 @@ map('n', '<leader>bn', '<cmd>enew<cr>', { desc = 'Create new buffer' })
 -- splits
 map('n', '<leader>s', '<cmd>split<cr>', { desc = 'Horizontal split' })
 map('n', '<leader>v', '<cmd>vsplit<cr>', { desc = 'Vertical split' })
+-- ZenMode toggle
+map("n", "<Leader>z", "<cmd>ZenMode<CR>", {desc = "ZenMode toggle"})

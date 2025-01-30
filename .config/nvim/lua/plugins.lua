@@ -168,5 +168,17 @@ return {
         return require "extras.cmp"
       end,
     },
+-- ZenMode
+    {
+      "folke/zen-mode.nvim",
+      opts = {},
+      cmd = { "ZenMode" },
+    },
+
+    {
+      "folke/twilight.nvim",
+      opts = {},
+      cmd = { "Twilight", "TwilightEnable", "TwilightDisable" }
+    },
 -- NEXT
 }
