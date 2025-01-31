@@ -121,7 +121,17 @@ return {
 -- Mason
     {
       "williamboman/mason.nvim",
-      cmd = {"Mason", "MasonInstall", "MasonUpdate"},
+      -- cmd = {"Mason", "MasonInstall", "MasonUpdate"},
+      lazy = false,
+    },
+-- mason-lsp
+    {
+        'williamboman/mason-lspconfig.nvim',
+        lazy = false,
+    },
+-- nvim-lsp
+    {
+      "neovim/nvim-lspconfig",
     },
 -- load luasnips + cmp related in insert mode only
     {
@@ -174,7 +184,7 @@ return {
       opts = {},
       cmd = { "ZenMode" },
     },
-
+-- Twilight
     {
       "folke/twilight.nvim",
       opts = {},

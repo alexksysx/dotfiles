@@ -45,3 +45,6 @@ vim.cmd.colorscheme("catppuccin-macchiato")
 vim.o.laststatus = 3
 -- Mason
 require("mason").setup()
+require("mason-lspconfig").setup()
+
+require("extras.lsp")
