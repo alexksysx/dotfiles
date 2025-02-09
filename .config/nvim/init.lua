@@ -47,4 +47,37 @@ vim.o.laststatus = 3
 require("mason").setup()
 require("mason-lspconfig").setup()
 
+vim.opt.termguicolors = true
+require("bufferline").setup{
+  options = {
+    offsets = {
+      {
+        filetype = "NvimTree",
+        text = "File Explorer",
+        highlight = "Directory",
+        separator = true
+      },
+    },
+    hover = {
+      enabled = true,
+      delay = 200,
+      reveal = {'close'}
+    },
+    separator_style = "slant",
+    diagnostics = "nvim_lsp",
+
+    diagnostics_update_on_event = true,
+    diagnostics_indicator = function(count, level, diagnostics_dict, context)
+      local s = " "
+      for e, n in pairs(diagnostics_dict) do
+        local sym = e == "error" and " "
+          or (e == "warning" and " " or " ")
+        s = s .. n .. sym
+      end
+      return s
+    end,
+    middle_mouse_command = "bdelete %d",
+  }
+}
+
 require("extras.lsp")

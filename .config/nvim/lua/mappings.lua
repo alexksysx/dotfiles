@@ -12,6 +12,7 @@ map('n', '<leader>fh', '<cmd>Telescope help_tags<cr>', { desc = 'Telescope help 
 -- lines
 map("n", "<leader>ln", "<cmd>set nu!<CR>", { desc = "toggle line number" })
 map("n", "<leader>lr", "<cmd>set rnu!<CR>", { desc = "toggle relative number" })
+map("n", "<leader>lw", "<cmd>set wrap!<CR>", { desc = "toggle soft-wrap" })
 -- windows movement
 map("n", "<C-h>", "<C-w>h", { desc = "switch window left" })
 map("n", "<C-l>", "<C-w>l", { desc = "switch window right" })
@@ -20,11 +21,16 @@ map("n", "<C-k>", "<C-w>k", { desc = "switch window up" })
 -- buffers
 map('n', '<leader>bl', '<cmd>Telescope buffers<cr>', { desc = 'Telescope buffers' })
 map('n', '<leader>bn', '<cmd>enew<cr>', { desc = 'Create new buffer' })
+-- bufferline
+map("n", "H", "<cmd>BufferLineCyclePrev<CR>", { desc = "Prev tab" })
+map("n", "L", "<cmd>BufferLineCycleNext<CR>", { desc = "Prev tab" })
 -- splits
 map('n', '<leader>s', '<cmd>split<cr>', { desc = 'Horizontal split' })
 map('n', '<leader>v', '<cmd>vsplit<cr>', { desc = 'Vertical split' })
 -- ZenMode toggle
 map("n", "<Leader>z", "<cmd>ZenMode<CR>", {desc = "ZenMode toggle"})
+--terminal
+map("t", "<Esc>", "<C-\\><C-n>", { desc = "Leave terminal with esc" })
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('UserLspConfig', {}),
@@ -51,8 +57,11 @@ vim.api.nvim_create_autocmd('LspAttach', {
       print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
     end, opts "List workspace folders")
     map('n', '<space>D', vim.lsp.buf.type_definition, opts "Go to type definition")
-    map('n', '<space>rn', vim.lsp.buf.rename, opts "Rename file")
+    map('n', '<space>rn', vim.lsp.buf.rename, opts "Rename")
     map({ 'n', 'v' }, '<space>ca', vim.lsp.buf.code_action, opts "Code actions")
+    map("n", "<leader>cd", vim.diagnostic.open_float, opts "Diagnostic")
+    map("n", "<leader>cf", vim.lsp.buf.format, opts "Format")
+    map('n', '<space>cr', vim.lsp.buf.rename, opts "Rename")
     map('n', 'gr', vim.lsp.buf.references, opts "List references to the symbol")
    map('n', '<leader>fr', function() require('telescope.builtin').lsp_references() end, { noremap = true, silent = true, desc = "LSP: List references" })
     map('n', '<space>f', function()

@@ -5,10 +5,10 @@ return {
       version = "*",
       lazy = false,
       dependencies = {
-	"nvim-tree/nvim-web-devicons",
+	      "nvim-tree/nvim-web-devicons",
       },
       config = function()
-	require("nvim-tree").setup {}
+	      require("nvim-tree").setup {}
       end,
     },
 -- Which key
@@ -16,16 +16,17 @@ return {
       "folke/which-key.nvim",
       event = "VeryLazy",
       opts = {
-	spec = {
-	  { "<leader>f", group = "Telescope" },
-	  { "<leader>l", group = "Line numbers" },
-    { "<leader>b", group = "Buffers"}
-	},
+      	spec = {
+      	  { "<leader>f", group = "Telescope" },
+      	  { "<leader>l", group = "Line numbers" },
+          { "<leader>b", group = "Buffers" },
+          { "<leader>c", group = "Code actions" }
+      	},
       },
       keys = {
-	{
-	  "<leader>",
-	}
+      	{
+      	  "<leader>",
+      	}
       },
     },
 -- Telescope
@@ -34,9 +35,9 @@ return {
       dependencies = { 'nvim-lua/plenary.nvim' },
     },
 -- catppuccin
-    { 
-      "catppuccin/nvim", 
-      name = "catppuccin", 
+    {
+      "catppuccin/nvim",
+      name = "catppuccin",
       priority = 1000,
     },
 -- lualine
@@ -44,8 +45,8 @@ return {
       'nvim-lualine/lualine.nvim',
       dependencies = { 'nvim-tree/nvim-web-devicons' },
       opts = {
-	theme = "catppuccin",
-	globalstatus = true,
+	      theme = "catppuccin",
+	      globalstatus = true,
       },
     },
 -- Gitsigns
@@ -53,14 +54,14 @@ return {
       "lewis6991/gitsigns.nvim",
       event = "BufReadPre",
       opts = {
-	signs = {
-    	  add          = { text = '┃' },
-    	  change       = { text = '┃' },
-    	  delete       = { text = '_' },
-    	  topdelete    = { text = '‾' },
-    	  changedelete = { text = '~' },
-    	  untracked    = { text = '┆' },
-        },
+	      signs = {
+    	    add          = { text = '┃' },
+    	    change       = { text = '┃' },
+    	    delete       = { text = '_' },
+    	    topdelete    = { text = '‾' },
+    	    changedelete = { text = '~' },
+    	    untracked    = { text = '┆' },
+          },
         signs_staged = {
           add          = { text = '┃' },
           change       = { text = '┃' },
@@ -121,7 +122,6 @@ return {
 -- Mason
     {
       "williamboman/mason.nvim",
-      -- cmd = {"Mason", "MasonInstall", "MasonUpdate"},
       lazy = false,
     },
 -- mason-lsp
@@ -190,5 +190,11 @@ return {
       opts = {},
       cmd = { "Twilight", "TwilightEnable", "TwilightDisable" }
     },
+-- bufferline
+  {
+    'akinsho/bufferline.nvim',
+    version = "*",
+    dependencies = 'nvim-tree/nvim-web-devicons',
+  },
 -- NEXT
 }
