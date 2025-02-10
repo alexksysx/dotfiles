@@ -43,6 +43,8 @@ require("lazy").setup({
 vim.cmd.colorscheme("catppuccin-macchiato")
 --lualine
 vim.o.laststatus = 3
+local minimap_extension = require("neominimap.statusline").lualine_default
+require('lualine').setup { extensions = { minimap_extension } }
 -- Mason
 require("mason").setup()
 require("mason-lspconfig").setup()
