@@ -91,6 +91,7 @@ fi
 alias ll='ls -l'
 alias la='ls -alh'
 alias l='ls -CF'
+alias lh='ls -larth'
 
 # Alias definitions.
 # You may want to put all your additions into a separate file like
@@ -172,3 +173,8 @@ eval "$(fzf --bash)"
 export BAT_THEME="Visual Studio Dark+"
 export EDITOR=nvim
 export JAVA_HOME=$(readlink -f /usr/bin/javac | sed "s:/bin/javac::")
+
+# local settings
+if [ -f ~/.bashrc_local ]; then
+    . ~/.bashrc_local
+fi
