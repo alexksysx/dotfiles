@@ -6,7 +6,7 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
   if vim.v.shell_error ~= 0 then
     vim.api.nvim_echo({
       { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
-      { out, "WarningMsg" },
+      { out,                            "WarningMsg" },
       { "\nPress any key to exit..." },
     }, true, {})
     vim.fn.getchar()
@@ -17,7 +17,7 @@ vim.opt.rtp:prepend(lazypath)
 
 -- Make sure to setup `mapleader` and `maplocalleader` before
 -- loading lazy.nvim so that mappings are correct.
--- This is also a good place to setup other settings (vim.opt) 
+-- This is also a good place to setup other settings (vim.opt)
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
@@ -43,14 +43,12 @@ require("lazy").setup({
 vim.cmd.colorscheme("catppuccin-macchiato")
 --lualine
 vim.o.laststatus = 3
-local minimap_extension = require("neominimap.statusline").lualine_default
-require('lualine').setup { extensions = { minimap_extension } }
 -- Mason
 require("mason").setup()
 require("mason-lspconfig").setup()
 
 vim.opt.termguicolors = true
-require("bufferline").setup{
+require("bufferline").setup {
   options = {
     offsets = {
       {
@@ -63,7 +61,7 @@ require("bufferline").setup{
     hover = {
       enabled = true,
       delay = 200,
-      reveal = {'close'}
+      reveal = { 'close' }
     },
     separator_style = "slant",
     diagnostics = "nvim_lsp",
@@ -73,7 +71,7 @@ require("bufferline").setup{
       local s = " "
       for e, n in pairs(diagnostics_dict) do
         local sym = e == "error" and " "
-          or (e == "warning" and " " or " ")
+            or (e == "warning" and " " or " ")
         s = s .. n .. sym
       end
       return s

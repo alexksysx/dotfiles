@@ -8,7 +8,11 @@ return {
       "nvim-tree/nvim-web-devicons",
     },
     config = function()
-      require("nvim-tree").setup {}
+      require("nvim-tree").setup({
+        git = {
+          ignore = false
+        }
+      })
     end,
   },
   -- Which key
@@ -40,6 +44,16 @@ return {
     "catppuccin/nvim",
     name = "catppuccin",
     priority = 1000,
+    config = function()
+      require("catppuccin").setup({
+        integrations = {
+          cmp = true,
+          gitsigns = true,
+          nvimtree = true,
+          treesitter = true,
+        }
+      })
+    end
   },
   -- lualine
   {
@@ -72,7 +86,7 @@ return {
         untracked    = { text = '┆' },
       },
       signs_staged_enable          = true,
-      signcolumn                   = true, -- Toggle with `:Gitsigns toggle_signs`
+      signcolumn                   = true,  -- Toggle with `:Gitsigns toggle_signs`
       numhl                        = false, -- Toggle with `:Gitsigns toggle_numhl`
       linehl                       = false, -- Toggle with `:Gitsigns toggle_linehl`
       word_diff                    = false, -- Toggle with `:Gitsigns toggle_word_diff`
@@ -84,7 +98,7 @@ return {
       current_line_blame           = false, -- Toggle with `:Gitsigns toggle_current_line_blame`
       current_line_blame_opts      = {
         virt_text = true,
-        virt_text_pos = 'eol',   -- 'eol' | 'overlay' | 'right_align'
+        virt_text_pos = 'eol', -- 'eol' | 'overlay' | 'right_align'
         delay = 1000,
         ignore_whitespace = false,
         virt_text_priority = 100,
@@ -93,7 +107,7 @@ return {
       current_line_blame_formatter = '<author>, <author_time:%R> - <summary>',
       sign_priority                = 6,
       update_debounce              = 100,
-      status_formatter             = nil, -- Use default
+      status_formatter             = nil,   -- Use default
       max_file_length              = 40000, -- Disable if file is longer than this (in lines)
       preview_config               = {
         -- Options passed to nvim_open_win
@@ -108,17 +122,21 @@ return {
   -- TreeSitter
   {
     "nvim-treesitter/nvim-treesitter",
-    event = { "BufReadPost", "BufNewFile" },
+    event = { "BufReadPre", "BufNewFile" },
+    -- event = { "VeryLazy" },
     cmd = { "TSInstall", "TSBufEnable", "TSBufDisable", "TSModuleInfo" },
     build = ":TSUpdate",
-    opts = {
-      ensure_installed = { "lua", "c", "cpp", "markdown", "markdown_inline" },
-      highlight = {
-        enable = true,
-        use_languagetree = true,
-      },
-      indent = { enable = true },
-    },
+    config = function()
+      local configs = require("nvim-treesitter.configs")
+      configs.setup({
+        ensure_installed = { "lua", "c", "cpp", "markdown", "markdown_inline", "python" },
+        highlight = {
+          enable = true,
+          use_languagetree = true,
+        },
+        indent = { enable = true },
+      })
+    end,
   },
   -- Mason
   {
@@ -129,6 +147,41 @@ return {
   {
     'williamboman/mason-lspconfig.nvim',
     lazy = false,
+  },
+  -- mason-nvim-dap
+  {
+    "jay-babu/mason-nvim-dap.nvim",
+    event = "VeryLazy",
+    dependencies = {
+      "williamboman/mason.nvim",
+      "mfussenegger/nvim-dap",
+    },
+    opts = {
+      handlers = {},
+    }
+  },
+  -- nvim-dap
+  {
+    "mfussenegger/nvim-dap"
+  },
+  {
+    "rcarriga/nvim-dap-ui",
+    event = "VeryLazy",
+    dependencies = { "mfussenegger/nvim-dap", "nvim-neotest/nvim-nio" },
+    config = function()
+      local dap = require("dap")
+      local dapui = require("dapui")
+      dapui.setup()
+      dap.listeners.after.event_initialized["dapui_config"] = function()
+        dapui.open()
+      end
+      dap.listeners.before.event_terminated["dapui_config"] = function()
+        dapui.close()
+      end
+      dap.listeners.before.event_exited['dapui_config'] = function()
+        dapui.close()
+      end
+    end,
   },
   -- nvim-lsp
   {
@@ -180,59 +233,96 @@ return {
     end,
   },
   -- ZenMode
-  {
-    "folke/zen-mode.nvim",
-    opts = {},
-    cmd = { "ZenMode" },
-  },
-  -- Twilight
-  {
-    "folke/twilight.nvim",
-    opts = {},
-    cmd = { "Twilight", "TwilightEnable", "TwilightDisable" }
-  },
+  -- {
+  --   "folke/zen-mode.nvim",
+  --   opts = {},
+  --   cmd = { "ZenMode" },
+  -- },
+  -- -- Twilight
+  -- {
+  --   "folke/twilight.nvim",
+  --   opts = {},
+  --   cmd = { "Twilight", "TwilightEnable", "TwilightDisable" }
+  -- },
   -- bufferline
   {
     'akinsho/bufferline.nvim',
     version = "*",
     dependencies = 'nvim-tree/nvim-web-devicons',
   },
-  -- neominimap
+  -- dashboard
+  -- {
+  --   "ahmedkhalf/project.nvim",
+  --   config = function()
+  --     require("project_nvim").setup {
+  --       -- your configuration comes here
+  --       -- or leave it empty to use the default settings
+  --       -- refer to the configuration section below
+  --       require('telescope').load_extension('projects')
+  --     }
+  --   end
+  -- },
+  -- {
+  --   'nvimdev/dashboard-nvim',
+  --   config = function()
+  --     require("dashboard").setup {
+  --
+  --     }
+  --   end,
+  --   event = 'VimEnter',
+  --   dependencies = { { 'nvim-tree/nvim-web-devicons' } }
+  -- },
   {
-    "Isrothy/neominimap.nvim",
-    version = "v3.*.*",
-    enabled = true,
+    "folke/snacks.nvim",
+    priority = 1000,
     lazy = false,
-    keys = {
-      -- Global Minimap Controls
-      { "<leader>nm",  "<cmd>Neominimap toggle<cr>",      desc = "Toggle global minimap" },
-      { "<leader>no",  "<cmd>Neominimap on<cr>",          desc = "Enable global minimap" },
-      { "<leader>nc",  "<cmd>Neominimap off<cr>",         desc = "Disable global minimap" },
-      { "<leader>nr",  "<cmd>Neominimap refresh<cr>",     desc = "Refresh global minimap" },
-
-      -- Window-Specific Minimap Controls
-      { "<leader>nwt", "<cmd>Neominimap winToggle<cr>",   desc = "Toggle minimap for current window" },
-      { "<leader>nwr", "<cmd>Neominimap winRefresh<cr>",  desc = "Refresh minimap for current window" },
-      { "<leader>nwo", "<cmd>Neominimap winOn<cr>",       desc = "Enable minimap for current window" },
-      { "<leader>nwc", "<cmd>Neominimap winOff<cr>",      desc = "Disable minimap for current window" },
-
-      -- Tab-Specific Minimap Controls
-      { "<leader>ntt", "<cmd>Neominimap tabToggle<cr>",   desc = "Toggle minimap for current tab" },
-      { "<leader>ntr", "<cmd>Neominimap tabRefresh<cr>",  desc = "Refresh minimap for current tab" },
-      { "<leader>nto", "<cmd>Neominimap tabOn<cr>",       desc = "Enable minimap for current tab" },
-      { "<leader>ntc", "<cmd>Neominimap tabOff<cr>",      desc = "Disable minimap for current tab" },
-
-      -- Buffer-Specific Minimap Controls
-      { "<leader>nbt", "<cmd>Neominimap bufToggle<cr>",   desc = "Toggle minimap for current buffer" },
-      { "<leader>nbr", "<cmd>Neominimap bufRefresh<cr>",  desc = "Refresh minimap for current buffer" },
-      { "<leader>nbo", "<cmd>Neominimap bufOn<cr>",       desc = "Enable minimap for current buffer" },
-      { "<leader>nbc", "<cmd>Neominimap bufOff<cr>",      desc = "Disable minimap for current buffer" },
-
-      ---Focus Controls
-      { "<leader>nf",  "<cmd>Neominimap focus<cr>",       desc = "Focus on minimap" },
-      { "<leader>nu",  "<cmd>Neominimap unfocus<cr>",     desc = "Unfocus minimap" },
-      { "<leader>ns",  "<cmd>Neominimap toggleFocus<cr>", desc = "Switch focus on minimap" },
-    },
-  }
-  -- NEXT
+    opts = {
+      dashboard = {
+        enabled = true,
+        example = "compact_files",
+        preset = {
+          keys = {
+            { icon = " ", key = "f", desc = "Find File", action = ':lua require"telescope.builtin".find_files({ hidden = true })' },
+            { icon = " ", key = "n", desc = "New File", action = ":ene | startinsert" },
+            { icon = " ", key = "g", desc = "Find Text", action = ":lua Snacks.dashboard.pick('live_grep')" },
+            { icon = " ", key = "r", desc = "Recent Files", action = ":lua Snacks.dashboard.pick('oldfiles')" },
+            { icon = " ", key = "c", desc = "Config", action = ":lua Snacks.dashboard.pick('files', {cwd = vim.fn.stdpath('config')})" },
+            -- { icon = " ", key = "s", desc = "Restore Session", section = "session" },
+            { icon = "󰒲 ", key = "L", desc = "Lazy", action = ":Lazy", enabled = package.loaded.lazy ~= nil },
+            { icon = " ", key = "q", desc = "Quit", action = ":qa" },
+          }
+        }
+      },
+      zen = {
+        toggles = {
+          dim = true,
+          git_signs = true,
+          -- mini_diff_signs = false,
+          diagnostics = true,
+          inlay_hints = true,
+        },
+        show = {
+          statusline = true, -- can only be shown when using the global statusline
+          tabline = false,
+        },
+        win = {
+          backdrop = {
+            transparent = false,
+            blend = 99
+          }
+        }
+      },
+      input = {
+        enabled = true,
+      },
+      scratch = {
+        enabled = true,
+      }
+      -- picker = {
+      --   sources = {
+      --     files = { hidden = true }
+      --   }
+      -- },
+    }
+  },
 }

@@ -1,9 +1,9 @@
 local map = vim.keymap.set
--- comment, slash(/) in neovim is underscore(_) 
+-- comment, slash(/) in neovim is underscore(_)
 map("n", "<C-_>", "gcc", { remap = true })
 map("v", "<C-_>", "gc", { remap = true })
 -- map NvimTree
-map("n", "<Leader>e", "<cmd>NvimTreeToggle<CR>", {desc = "nvimtree toggle"})
+map("n", "<Leader>e", "<cmd>NvimTreeToggle<CR>", { desc = "nvimtree toggle" })
 -- map Telescope
 map('n', '<leader>ff', '<cmd>Telescope find_files<cr>', { desc = 'Telescope find files' })
 map('n', '<leader>fg', '<cmd>Telescope live_grep<cr>', { desc = 'Telescope live grep' })
@@ -25,12 +25,50 @@ map('n', '<leader>bn', '<cmd>enew<cr>', { desc = 'Create new buffer' })
 map("n", "H", "<cmd>BufferLineCyclePrev<CR>", { desc = "Prev tab" })
 map("n", "L", "<cmd>BufferLineCycleNext<CR>", { desc = "Prev tab" })
 -- splits
-map('n', '<leader>s', '<cmd>split<cr>', { desc = 'Horizontal split' })
-map('n', '<leader>v', '<cmd>vsplit<cr>', { desc = 'Vertical split' })
+map('n', '<leader>ss', '<cmd>split<cr>', { desc = 'Horizontal split' })
+map('n', '<leader>sv', '<cmd>vsplit<cr>', { desc = 'Vertical split' })
 -- ZenMode toggle
-map("n", "<Leader>z", "<cmd>ZenMode<CR>", {desc = "ZenMode toggle"})
+map("n", "<Leader>z", "<cmd>lua Snacks.zen()<CR>", { desc = "ZenMode toggle" })
 --terminal
 map("t", "<Esc>", "<C-\\><C-n>", { desc = "Leave terminal with esc" })
+--dap
+map("n", "<leader>db", "<cmd>DapToggleBreakpoint<CR>", { desc = "Add breakpoint at line" })
+map("n", "<leader>dr", "<cmd>DapContinue<CR>", { desc = "Start or continue the debugger" })
+-- Snacks.scratch
+map("n", "<leader>nn", function() Snacks.scratch() end, { desc = "Toggle scratch buffer" })
+map("n", "<leader>ns", function() Snacks.scratch.select() end, { desc = "Select scratch buffer" })
+
+
+-- resize split
+map("n", "<leader>srv", function()
+  Snacks.input({prompt = "Resize vsplit: ", default = "+5"}, function (input)
+    local sizediff = tonumber(input)
+    if (sizediff == nil) then
+      print("Must specify number with +/- prefix")
+      return
+    end
+    local sign = "+"
+    if (sizediff < 0) then
+      sign = ""
+    end
+    vim.api.nvim_command("vertical resize " .. sign .. sizediff)
+  end)
+end, { desc = "Resize vertical split" })
+
+map("n", "<leader>srs", function()
+  vim.ui.input({prompt = "Resize split: ", default = "+5"}, function (input)
+    local sizediff = tonumber(input)
+    if (sizediff == nil) then
+      print("Must specify number with +/- prefix")
+      return
+    end
+    local sign = "+"
+    if (sizediff < 0) then
+      sign = ""
+    end
+    vim.api.nvim_command("resize " .. sign .. sizediff)
+  end)
+end, { desc = "Resize split" })
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('UserLspConfig', {}),
@@ -63,7 +101,8 @@ vim.api.nvim_create_autocmd('LspAttach', {
     map("n", "<leader>cf", vim.lsp.buf.format, opts "Format")
     map('n', '<space>cr', vim.lsp.buf.rename, opts "Rename")
     map('n', 'gr', vim.lsp.buf.references, opts "List references to the symbol")
-   map('n', '<leader>fr', function() require('telescope.builtin').lsp_references() end, { noremap = true, silent = true, desc = "LSP: List references" })
+    map('n', '<leader>fr', function() require('telescope.builtin').lsp_references() end,
+      { noremap = true, silent = true, desc = "LSP: List references" })
     map('n', '<space>f', function()
       vim.lsp.buf.format { async = true }
     end, opts "Format")

@@ -55,3 +55,6 @@ local lspconfig = require "lspconfig"
 lspconfig.lua_ls.setup {}
 lspconfig.clangd.setup {}
 lspconfig.cmake.setup{}
+lspconfig.pylsp.setup{}
+lspconfig.ts_ls.setup{}
+lspconfig.svelte.setup{}
