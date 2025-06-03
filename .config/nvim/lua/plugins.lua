@@ -147,6 +147,10 @@ return {
   {
     'williamboman/mason-lspconfig.nvim',
     lazy = false,
+    dependencies = {
+      {"williamboman/mason.nvim", opts = {}},
+      "neovim/nvim-lspconfig",
+    }
   },
   -- mason-nvim-dap
   {

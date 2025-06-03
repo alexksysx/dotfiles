@@ -44,8 +44,11 @@ vim.cmd.colorscheme("catppuccin-macchiato")
 --lualine
 vim.o.laststatus = 3
 -- Mason
-require("mason").setup()
-require("mason-lspconfig").setup()
+-- require("mason").setup()
+-- require("mason-lspconfig").setup({
+--   automatic_enable = true,
+--   ensure_installed = { "lua_ls" }
+-- })
 
 vim.opt.termguicolors = true
 require("bufferline").setup {
