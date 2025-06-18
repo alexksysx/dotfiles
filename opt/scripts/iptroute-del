@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Function to display usage information
+usage() {
+    echo "Usage: $0 <SOURCE_INTERFACE:SOURCE_IP:SOURCE_PORT> <DESTINATION_INTERFACE:DESTINATION_IP:DESTINATION_PORT>"
+    echo "Example: $0 eth0:10.10.10.28:22222 wg0:10.7.0.2:22"
+    exit 1
+}
+
+# Check if the script is run as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Error: This script must be run as root."
+    exit 1
+fi
+
+# Check if the correct number of arguments is provided
+if [ "$#" -ne 2 ]; then
+    usage
+fi
+
+# Parse the input arguments
+source_interface=$(echo "$1" | cut -d: -f1)
+source_ip=$(echo "$1" | cut -d: -f2)
+source_port=$(echo "$1" | cut -d: -f3)
+
+destination_interface=$(echo "$2" | cut -d: -f1)
+destination_ip=$(echo "$2" | cut -d: -f2)
+destination_port=$(echo "$2" | cut -d: -f3)
+
+# Check if the extracted variables are non-empty
+if [ -z "$source_interface" ] || [ -z "$source_ip" ] || [ -z "$source_port" ] || \
+   [ -z "$destination_interface" ] || [ -z "$destination_ip" ] || [ -z "$destination_port" ]; then
+    echo "Error: Could not parse the input arguments correctly."
+    usage
+fi
+
+# Define the iptables rules to be deleted
+rule1="PREROUTING -i $source_interface -p tcp --dport $source_port -j DNAT --to-destination $destination_ip:$destination_port"
+rule2="POSTROUTING -o $destination_interface -p tcp --dport $destination_port -d $destination_ip -j SNAT --to-source $source_ip"
+
+# Delete the iptables rules
+iptables -t nat -D $rule1
+iptables -t nat -D $rule2
+
+# Save the iptables rules
+iptables-save -f /etc/iptables/rules.v4
+
+echo "IP routing rules deleted successfully and saved to /etc/iptables/rules.v4."
