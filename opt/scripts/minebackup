@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Check if the correct number of arguments is provided
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <path_to_minecraft_server> <backup_directory> <systemd_service_name>"
+    exit 1
+fi
+
+# Assign arguments to variables
+MINECRAFT_SERVER_PATH=$1
+BACKUP_DIR=$2
+SYSTEMD_SERVICE_NAME=$3
+
+# Stop the Minecraft server
+echo "Stopping $SYSTEMD_SERVICE_NAME..."
+systemctl --user stop "$SYSTEMD_SERVICE_NAME"
+
+# Define the files to be backed up
+FILES=("banned-ips.json" "help.yml" "permissions.yml" "server.properties" "whitelist.json" "banned-players.json" "commands.yml" "spigot.yml" "bukkit.yml" "eula.txt" "ops.json" "usercache.json")
+
+DIRECTORIES=("world" "world_the_end" "world_nether" "plugins")
+
+# Create a timestamp
+TIMESTAMP=$(date +"%Y-%m-%d__%H-%M-%S")
+
+# Create a backup filename
+BACKUP_FILE="backup-$TIMESTAMP.tar.gz"
+
+# Change to the Minecraft server directory
+cd "$MINECRAFT_SERVER_PATH" || { echo "Failed to change to Minecraft server directory"; exit 1; }
+
+# Create a backup archive
+echo "Creating backup archive..."
+tar -czf "$BACKUP_DIR/$BACKUP_FILE" "${FILES[@]}" "${DIRECTORIES[@]}" 2>/dev/null || { echo "Failed to create backup archive"; exit 1; }
+
+# Start the Minecraft server
+echo "Starting $SYSTEMD_SERVICE_NAME..."
+systemctl --user start "$SYSTEMD_SERVICE_NAME"
+
+echo "Backup completed successfully!"
