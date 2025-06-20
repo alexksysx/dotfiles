@@ -168,8 +168,6 @@ ulimit -c unlimited
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
 #alias wine='WINEARCH=win32 WINEPREFIX=~/win32 wine'
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-eval "$(fzf --bash)"
 export BAT_THEME="Visual Studio Dark+"
 export EDITOR=nvim
 export JAVA_HOME=$(readlink -f /usr/bin/javac | sed "s:/bin/javac::")
