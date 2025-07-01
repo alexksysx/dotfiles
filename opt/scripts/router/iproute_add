@@ -1,0 +1,17 @@
+#!/bin/bash
+
+usage() {
+  echo "Usage: $0 <FILE_WITH_IPS/MASK> <INTERFACE>"
+  echo "Example: $0 /tmp/ips.txt wg0"
+  exit 1
+}
+
+
+if [ "$#" -ne 2 ]; then
+    usage
+fi
+
+cat $1 | tr ',' '\n' | while read line; do
+        echo $line
+        ip route add $line dev $2
+done
