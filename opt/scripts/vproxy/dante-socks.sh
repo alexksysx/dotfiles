@@ -63,20 +63,19 @@ configure_danted_conf() {
 
     # Write the new configuration to danted.conf
     cat << EOF | tee $DANTE_CONF > /dev/null
-logoutput: /var/log/socks.log
-errorlog: /var/log/socks_error.log
+logoutput: stderr
 internal: $internal_interface port = $port
 external: $internal_interface
 socksmethod: pam.username
-user.privileged: root
+user.privileged: proxy
 user.unprivileged: nobody
 user.libwrap: nobody
 client pass {
     from: 0/0 to: 0/0
     log: connect disconnect error ioop
 }
-pass {
-    from: 0.0.0.0/0 to: 0.0.0.0/0
+socks pass {
+    from: 0/0 to: 0/0
     log: connect disconnect error ioop
 }
 EOF
