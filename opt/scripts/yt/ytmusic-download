@@ -1,0 +1,31 @@
+#!/bin/bash
+
+check_tool_installed() {
+    if ! command -v "$1" &> /dev/null; then
+        echo "$1 could not be found, please install it."
+        exit 1
+    fi
+}
+
+check_tool_installed yt-dlp
+check_tool_installed ffmpeg
+
+read -p "Enter the YouTube URL: " URL
+read -p "Enter the output file name (without extension): " OUTPUT_NAME
+read -p "Enter the time to cut audio in format [HH]:mm:ss (optional): " TIME_TO_CUT
+
+
+# If TIME_TO_CUT is specified, run ffmpeg command
+if [[ -n "${TIME_TO_CUT}" ]]; then
+    echo "Downloading audio from $URL..."
+    yt-dlp -x --embed-thumbnail --audio-format aac --audio-quality best "${URL}" -o "${OUTPUT_NAME}-tmp"
+    echo "Processing audio..."
+    ffmpeg -acodec aac -t "${TIME_TO_CUT}" -i "${OUTPUT_NAME}-tmp.m4a" -disposition:v -attached_pic "${OUTPUT_NAME}.m4a"
+    echo "Cleaning up temporary file..."
+    rm "${OUTPUT_NAME}-tmp.m4a"
+else
+    echo "Downloading audio from $URL..."
+    yt-dlp -x --embed-thumbnail --audio-format aac --audio-quality best "${URL}" -o "${OUTPUT_NAME}"
+fi
+
+echo "Process completed successfully!"
