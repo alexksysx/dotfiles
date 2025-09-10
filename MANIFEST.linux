@@ -3,3 +3,4 @@
 .config/nvim|symlink|
 .bashrc|symlink|
 .gdbinit|symlink|
+opt|symlink|

@@ -11,9 +11,9 @@ check_tool_installed yt-dlp
 check_tool_installed ffmpeg
 
 read -p "Enter the YouTube URL: " URL
-read -p "Enter the output file name (without extension): " OUTPUT_NAME
 read -p "Enter the time to cut audio in format [HH]:mm:ss (optional): " TIME_TO_CUT
 
+OUTPUT_NAME=$(yt-dlp --print title "${URL}")
 
 # If TIME_TO_CUT is specified, run ffmpeg command
 if [[ -n "${TIME_TO_CUT}" ]]; then
