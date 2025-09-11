@@ -10,12 +10,36 @@ check_tool_installed() {
 check_tool_installed yt-dlp
 check_tool_installed ffmpeg
 
-read -p "Enter the YouTube URL: " URL
-read -p "Enter the time to cut audio in format [HH]:mm:ss (optional): " TIME_TO_CUT
+display_help() {
+    echo "Usage: $0 [URL] [TIME_TO_CUT]"
+    echo
+    echo "Download audio from a YouTube video and optionally cut it."
+    echo
+    echo "Arguments:"
+    echo "  URL          The YouTube URL of the video."
+    echo "  TIME_TO_CUT  The time to cut audio in format [HH]:mm:ss (optional)."
+    echo
+    echo "If no arguments are provided, the script will run in interactive mode."
+}
+
+if [[ "$1" == "help" ]]; then
+    display_help
+    exit 0
+fi
+
+if [[ -n "$1" && -n "$2" ]]; then
+    URL="$1"
+    TIME_TO_CUT="$2"
+elif [[ -n "$1" ]]; then
+    URL="$1"
+    TIME_TO_CUT=""
+else
+    read -p "Enter the YouTube URL: " URL
+    read -p "Enter the time to cut audio in format [HH]:mm:ss (optional): " TIME_TO_CUT
+fi
 
 OUTPUT_NAME=$(yt-dlp --print title "${URL}")
 
-# If TIME_TO_CUT is specified, run ffmpeg command
 if [[ -n "${TIME_TO_CUT}" ]]; then
     echo "Downloading audio from $URL..."
     yt-dlp -x --embed-thumbnail --audio-format aac --audio-quality best "${URL}" -o "${OUTPUT_NAME}-tmp"
