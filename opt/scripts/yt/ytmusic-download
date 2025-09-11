@@ -44,7 +44,7 @@ if [[ -n "${TIME_TO_CUT}" ]]; then
     echo "Downloading audio from $URL..."
     yt-dlp -x --embed-thumbnail --audio-format aac --audio-quality best "${URL}" -o "${OUTPUT_NAME}-tmp"
     echo "Processing audio..."
-    ffmpeg -acodec aac -t "${TIME_TO_CUT}" -i "${OUTPUT_NAME}-tmp.m4a" -disposition:v -attached_pic "${OUTPUT_NAME}.m4a"
+    ffmpeg -acodec aac -t "${TIME_TO_CUT}" -i "${OUTPUT_NAME}-tmp.m4a" -vcodec copy "${OUTPUT_NAME}.m4a"
     echo "Cleaning up temporary file..."
     rm "${OUTPUT_NAME}-tmp.m4a"
 else
