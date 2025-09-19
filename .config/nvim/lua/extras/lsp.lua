@@ -1,5 +1,5 @@
 -- local M = {}
-local lspconfig = require "lspconfig"
+-- local lspconfig = require "lspconfig"
 --
 -- M.on_attach = function(_, bufnr)
 --   local function opts(desc)
@@ -52,9 +52,12 @@ local lspconfig = require "lspconfig"
 -- }
 
 
-lspconfig.lua_ls.setup {}
-lspconfig.clangd.setup {}
-lspconfig.cmake.setup{}
-lspconfig.pylsp.setup{}
-lspconfig.ts_ls.setup{}
-lspconfig.svelte.setup{}
+-- vim.lsp.config("lua_ls")
+-- vim.lsp.config("clangd")
+-- vim.lsp.config("cmake")
+-- vim.lsp.config("pylsp")
+-- vim.lsp.config("ts_ls")
+-- vim.lsp.config("svelte")
+
+
+vim.lsp.enable({"lua_ls", "clangd", "cmake", "pylsp", "ts_ls", "svelte"})
