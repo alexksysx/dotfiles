@@ -156,7 +156,10 @@ alias sudoedit='sudo -e'
 ## GIT
 alias gs='git status'
 alias ga='git add'
-alias gc='git commit'
+# alias gc='git commit'
+gc() {
+  git commit -m "$1"
+}
 
 ## Alias's for archives
 alias mktar='tar -cvf'

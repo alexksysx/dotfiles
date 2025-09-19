@@ -6,9 +6,29 @@ map("v", "<C-_>", "gc", { remap = true })
 map("n", "<Leader>e", "<cmd>NvimTreeToggle<CR>", { desc = "nvimtree toggle" })
 -- map Telescope
 map('n', '<leader>ff', '<cmd>Telescope find_files<cr>', { desc = 'Telescope find files' })
+map('n', '<leader>fr', '<cmd>Telescope oldfiles<cr>', { desc = 'Telescope recent files' })
 map('n', '<leader>fg', '<cmd>Telescope live_grep<cr>', { desc = 'Telescope live grep' })
 map('n', '<leader>fb', '<cmd>Telescope buffers<cr>', { desc = 'Telescope buffers' })
 map('n', '<leader>fh', '<cmd>Telescope help_tags<cr>', { desc = 'Telescope help tags' })
+map('n', '<leader>ft', '<cmd>Telescope treesitter<cr>', { desc = 'Telescope treesitter' })
+map('n', '<leader>fm', '<cmd>Telescope marks<cr>', { desc = 'Telescope marks' })
+map('n', '<leader>fa', function()
+  require"telescope.builtin".find_files({ hidden = true })
+end, { desc = 'Telescope find hidden files' })
+map('n', '<leader>fd', function()
+  vim.ui.input({prompt = "Search path: ", default = "/", completion = "dir"}, function(input)
+    if (input == nil or input == "") then
+      print("Must specify search path")
+      return
+    end
+    require('telescope.builtin').live_grep({
+      cwd = input,
+    })
+  end)
+end ,{ desc = 'Telescope live grep in directory' })
+-- git
+map('n', '<leader>gs', '<cmd>Telescope git_status<cr>', { desc = 'Git status' })
+map('n', '<leader>gb', '<cmd>Telescope git_branches<cr>', { desc = 'Git branches' })
 -- lines
 map("n", "<leader>ln", "<cmd>set nu!<CR>", { desc = "toggle line number" })
 map("n", "<leader>lr", "<cmd>set rnu!<CR>", { desc = "toggle relative number" })
@@ -31,6 +51,7 @@ map('n', '<leader>sv', '<cmd>vsplit<cr>', { desc = 'Vertical split' })
 map("n", "<Leader>z", "<cmd>lua Snacks.zen()<CR>", { desc = "ZenMode toggle" })
 --terminal
 map("t", "<Esc>", "<C-\\><C-n>", { desc = "Leave terminal with esc" })
+map("n", "<leader>t", "<cmd>lua Snacks.terminal.toggle()<CR>", { desc = "Toggle terminal" })
 --dap
 map("n", "<leader>db", "<cmd>DapToggleBreakpoint<CR>", { desc = "Add breakpoint at line" })
 map("n", "<leader>dr", "<cmd>DapContinue<CR>", { desc = "Start or continue the debugger" })
@@ -41,7 +62,7 @@ map("n", "<leader>ns", function() Snacks.scratch.select() end, { desc = "Select 
 
 -- resize split
 map("n", "<leader>srv", function()
-  Snacks.input({prompt = "Resize vsplit: ", default = "+5"}, function (input)
+  vim.ui.input({prompt = "Resize vsplit: ", default = "+5"}, function (input)
     local sizediff = tonumber(input)
     if (sizediff == nil) then
       print("Must specify number with +/- prefix")

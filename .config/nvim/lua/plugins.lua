@@ -24,7 +24,9 @@ return {
         { "<leader>f", group = "Telescope" },
         { "<leader>l", group = "Line numbers" },
         { "<leader>b", group = "Buffers" },
-        { "<leader>c", group = "Code actions" }
+        { "<leader>c", group = "Code actions" },
+        { "<leader>g", group = "Git" },
+        { "<leader>s", group = "Splits" },
       },
     },
     keys = {
