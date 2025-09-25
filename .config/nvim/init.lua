@@ -25,6 +25,9 @@ vim.g.maplocalleader = " "
 require("options")
 -- Map settings
 require("mappings")
+vim.cmd("set keymap=russian-jcukenwin")
+vim.cmd("set iminsert=0")
+vim.cmd("set imsearch=0")
 
 -- Setup lazy.nvim
 require("lazy").setup({
