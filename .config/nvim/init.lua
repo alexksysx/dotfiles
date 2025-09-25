@@ -87,3 +87,7 @@ require("bufferline").setup {
 }
 
 require("extras.lsp")
+
+-- local require file, just in case if need some local tweaks
+-- put loc.lua in .config/nvim/lua folder
+pcall(require, "loc")

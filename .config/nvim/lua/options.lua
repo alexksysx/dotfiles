@@ -6,7 +6,8 @@ local g = vim.g
 o.laststatus = 3
 o.showmode = false
 
-o.clipboard = "unnamedplus"
+-- better put in loc.lua
+-- o.clipboard = "unnamedplus"
 o.cursorline = true
 o.cursorlineopt = "number"
 
