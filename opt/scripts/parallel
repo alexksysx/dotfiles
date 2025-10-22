@@ -1,0 +1,43 @@
+#!/bin/bash
+
+usage() {
+    echo "Usage: $0 SCRIPT_PATH FILE_PATH [THREAD_COUNT]"
+    echo "  SCRIPT_PATH: Path to the script to be executed."
+    echo "  FILE_PATH:   Path to the file containing arguments, one per line."
+    echo "  THREAD_COUNT: Optional. Number of parallel processes to run (default is 4)."
+    echo
+    echo "Example: $0 ./process_data.sh ./data.txt 6"
+    exit 1
+}
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+    usage
+fi
+
+if [ "$#" -lt 2 ]; then
+    echo "Error: Insufficient arguments."
+    usage
+fi
+
+SCRIPT_PATH=$1
+FILE_PATH=$2
+THREAD_COUNT=${3:-4}
+
+if [ ! -f "$SCRIPT_PATH" ]; then
+    echo "Error: SCRIPT_PATH $SCRIPT_PATH not found!"
+    exit 1
+fi
+
+if [ ! -f "$FILE_PATH" ]; then
+    echo "Error: FILE_PATH $FILE_PATH not found!"
+    exit 1
+fi
+
+RUNSC=""
+mapfile -t lines < "$FILE_PATH"
+for ARG in "${lines[@]}"; do
+    RUNSC+="$SCRIPT_PATH $ARG\n"
+done
+
+echo -e "$RUNSC" | xargs -I CMD --max-procs="$THREAD_COUNT" bash -c CMD
+
