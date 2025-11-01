@@ -64,6 +64,9 @@ return {
     opts = {
       theme = "catppuccin",
       globalstatus = true,
+      sections = {
+        lualine_c = {{'filename', path = 3}}
+      }
     },
   },
   -- Gitsigns
