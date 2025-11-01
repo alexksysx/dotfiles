@@ -20,6 +20,7 @@ return {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
+      preset = "modern",
       spec = {
         { "<leader>f", group = "Telescope" },
         { "<leader>l", group = "Line numbers" },
