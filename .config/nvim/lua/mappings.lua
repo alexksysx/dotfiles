@@ -2,33 +2,63 @@ local map = vim.keymap.set
 -- comment, slash(/) in neovim is underscore(_)
 map("n", "<C-_>", "gcc", { remap = true })
 map("v", "<C-_>", "gc", { remap = true })
--- map NvimTree
-map("n", "<Leader>e", "<cmd>NvimTreeToggle<CR>", { desc = "nvimtree toggle" })
--- map Telescope
-map('n', '<leader>ff', '<cmd>Telescope find_files<cr>', { desc = 'Telescope find files' })
-map('n', '<leader>fr', '<cmd>Telescope oldfiles<cr>', { desc = 'Telescope recent files' })
-map('n', '<leader>fg', '<cmd>Telescope live_grep<cr>', { desc = 'Telescope live grep' })
-map('n', '<leader>fb', '<cmd>Telescope buffers<cr>', { desc = 'Telescope buffers' })
-map('n', '<leader>fh', '<cmd>Telescope help_tags<cr>', { desc = 'Telescope help tags' })
-map('n', '<leader>ft', '<cmd>Telescope treesitter<cr>', { desc = 'Telescope treesitter' })
-map('n', '<leader>fm', '<cmd>Telescope marks<cr>', { desc = 'Telescope marks' })
+
+-- map Snacks.explorer
+map("n", "<Leader>e", function() Snacks.explorer.open({hidden = true, ignored = true}) end, { desc = "nvimtree toggle" })
+
+-- map Snacks.picker
+map('n', '<leader>ff', function() Snacks.picker.files() end, { desc = 'Find files' })
+map('n', '<leader>fr', function() Snacks.picker.recent() end, { desc = 'Recent files' })
+map('n', '<leader>fs', function() Snacks.picker.smart() end, { desc = 'Smart' })
+map('n', '<leader>fg', function() Snacks.picker.grep() end, { desc = 'Live grep' })
+map('n', '<leader>fb', function() Snacks.picker.buffers() end, { desc = 'Buffers' })
+map('n', '<leader>fh', function() Snacks.picker.help() end, { desc = 'Help tags' })
+map('n', '<leader>ft', function() Snacks.picker.treesitter() end, { desc = 'Treesitter' })
+map('n', '<leader>fm', function() Snacks.picker.marks() end, { desc = 'Marks' })
 map('n', '<leader>fa', function()
-  require"telescope.builtin".find_files({ hidden = true })
-end, { desc = 'Telescope find hidden files' })
+  Snacks.picker.files({ hidden = true, ignored = true })
+end, { desc = 'Find hidden files' })
 map('n', '<leader>fd', function()
   vim.ui.input({prompt = "Search path: ", default = "/", completion = "dir"}, function(input)
     if (input == nil or input == "") then
       print("Must specify search path")
       return
     end
-    require('telescope.builtin').live_grep({
+    Snacks.picker.grep({
       cwd = input,
     })
   end)
-end ,{ desc = 'Telescope live grep in directory' })
+end ,{ desc = 'Live grep in directory' })
+
 -- git
-map('n', '<leader>gs', '<cmd>Telescope git_status<cr>', { desc = 'Git status' })
-map('n', '<leader>gb', '<cmd>Telescope git_branches<cr>', { desc = 'Git branches' })
+map('n', '<leader>gs', function() Snacks.picker.git_status() end, { desc = 'Git status' })
+map('n', '<leader>gb', function() Snacks.picker.git_branches() end, { desc = 'Git branches' })
+map('n', '<leader>gd', function() Snacks.picker.git_diff() end, { desc = 'Git diff' })
+map('n', '<leader>gll', function() Snacks.picker.git_log() end, { desc = 'Git log' })
+map('n', '<leader>gls', function() Snacks.picker.git_log_line() end, { desc = 'Git log for line' })
+map('n', '<leader>glf', function() Snacks.picker.git_log_file() end, { desc = 'Git log for file' })
+map('n', '<leader>gu', "<cmd>!git pull<CR>", { desc = "Git pull" })
+map('n', '<leader>gp', "<cmd>!git push<CR>", { desc = "Git push" })
+map('n', '<leader>gc', function()
+  vim.ui.input({prompt = "Commit message: "}, function(input)
+    if (input == nil or input == "") then
+      print("Must specify commit message")
+      return
+    end
+    vim.cmd("!git commit -m \"" .. input .. "\"")
+  end)
+end, { desc = "Git commit" })
+
+map('n', '<leader>ga', function()
+  vim.ui.input({prompt = "Search path: ", default = ".", completion = "file"}, function(input)
+    if (input == nil or input == "") then
+      print("Must specify file to stage")
+      return
+    end
+    vim.cmd("!git add " .. input)
+  end)
+end ,{ desc = 'Git add' })
+
 -- lines
 map("n", "<leader>ln", "<cmd>set nu!<CR>", { desc = "toggle line number" })
 map("n", "<leader>lr", "<cmd>set rnu!<CR>", { desc = "toggle relative number" })
@@ -39,7 +69,7 @@ map("n", "<C-l>", "<C-w>l", { desc = "switch window right" })
 map("n", "<C-j>", "<C-w>j", { desc = "switch window down" })
 map("n", "<C-k>", "<C-w>k", { desc = "switch window up" })
 -- buffers
-map('n', '<leader>bl', '<cmd>Telescope buffers<cr>', { desc = 'Telescope buffers' })
+map('n', '<leader>bl', function() Snacks.picker.buffers() end, { desc = 'Buffers list' })
 map('n', '<leader>bn', '<cmd>enew<cr>', { desc = 'Create new buffer' })
 -- bufferline
 map("n", "H", "<cmd>BufferLineCyclePrev<CR>", { desc = "Prev tab" })
