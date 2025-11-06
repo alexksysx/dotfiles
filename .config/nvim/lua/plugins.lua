@@ -11,7 +11,6 @@ return {
                 { "<leader>b",  group = "Buffers" },
                 { "<leader>c",  group = "Code actions" },
                 { "<leader>g",  group = "Git" },
-                { "<leader>gl", group = "Git log" },
                 { "<leader>s",  group = "Splits" },
             },
         },
