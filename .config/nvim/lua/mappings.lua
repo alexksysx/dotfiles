@@ -8,14 +8,16 @@ map("n", "<Leader>e", function() Snacks.explorer.open({ hidden = true, ignored =
     { desc = "nvimtree toggle" })
 
 -- map Snacks.picker
+map('n', '<leader><space>', function() Snacks.picker.smart() end, { desc = 'Smart' })
+map('n', '<leader>:', function() Snacks.picker.command_history() end, { desc = 'Command history' })
 map('n', '<leader>ff', function() Snacks.picker.files() end, { desc = 'Find files' })
 map('n', '<leader>fr', function() Snacks.picker.recent() end, { desc = 'Recent files' })
-map('n', '<leader>fs', function() Snacks.picker.smart() end, { desc = 'Smart' })
 map('n', '<leader>fg', function() Snacks.picker.grep({ hidden = true, ignored = true }) end, { desc = 'Live grep' })
 map('n', '<leader>fb', function() Snacks.picker.buffers() end, { desc = 'Buffers' })
 map('n', '<leader>fh', function() Snacks.picker.help() end, { desc = 'Help tags' })
 map('n', '<leader>ft', function() Snacks.picker.treesitter() end, { desc = 'Treesitter' })
 map('n', '<leader>fm', function() Snacks.picker.marks() end, { desc = 'Marks' })
+map('n', '<leader>fp', function() Snacks.picker.marks() end, { desc = 'Manpage' })
 map('n', '<leader>fa', function()
     Snacks.picker.files({ hidden = true, ignored = true })
 end, { desc = 'Find hidden files' })
