@@ -62,6 +62,10 @@ map('n', '<leader>ga', function()
     end)
 end, { desc = 'Git add' })
 
+map('n', '<leader>g.', function()
+    vim.cmd("!git add %")
+end, { desc = 'Git add current file' })
+
 -- lines
 map("n", "<leader>ln", "<cmd>set nu!<CR>", { desc = "toggle line number" })
 map("n", "<leader>lr", "<cmd>set rnu!<CR>", { desc = "toggle relative number" })
