@@ -228,3 +228,20 @@ ftext() {
 	grep -iIHrn --color=always "$1" . | less -r
 }
 
+# mkdir and cd
+mkcd () {
+  \mkdir -p "$1"
+  cd "$1"
+}
+
+# create tmp dir and cd
+tempe () {
+  cd "$(mktemp -d)"
+  chmod -R 0700 .
+  if [[ $# -eq 1 ]]; then
+    \mkdir -p "$1"
+    cd "$1"
+    chmod -R 0700 .
+  fi
+}
+
