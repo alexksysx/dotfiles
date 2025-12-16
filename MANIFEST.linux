@@ -1,6 +1,7 @@
 .config/wgetrc|symlink|
 .config/user-dirs.dirs|symlink|
 .config/nvim|symlink|
+.config/tmux|symlink|
 .bashrc|symlink|
 .gdbinit|symlink|
 opt|symlink|
