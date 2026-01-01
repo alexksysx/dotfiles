@@ -201,7 +201,7 @@ list_users() {
 
 # Configure PAM for dante
 configure_pam() {
-    if ! grep -q "pam_pwdfile.so pwdfile $DANTE_PASSWD" $PAM_D_SOCKD; then
+    if [[ ! -f "$PAM_D_SOCKD" ]] then
         echo "Configuring PAM for dante..."
         echo "" >> $PAM_D_SOCKD
         echo "auth required pam_pwdfile.so pwdfile $DANTE_PASSWD" >> $PAM_D_SOCKD
