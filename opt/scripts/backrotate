@@ -1,0 +1,137 @@
+#!/bin/bash
+set -e 
+
+
+OUTPUT_DIR="./"
+ARCHIVE_TYPE="tar.xz"
+EXCLUDES=""
+ROTATION=""
+ARCHIVE_NAME=""
+SOURCE_DIR=""
+
+
+usage() {
+    echo "Usage: $0 <directory> [OPTIONS]"
+    echo "Options:"
+    echo "  -t, --type <type>       Archive type (tar.xz, tar.gz or zip). Default is tar.xz"
+    echo "  -e, --excludes <files>  Excluded files (separated by ';')"
+    echo "  -o, --output <path>     Path to save the archive. Default is current directory."
+    echo "  -r, --rotation <number> Number of archives to keep. No parameter means no rotation."
+    echo "  -n, --name <name>       Final archive name. Default is the name of the directory."
+    echo ""
+    echo "Example: $0 /path/to/directory -t zip -e \"exclude1.txt;exclude2.txt\" -o \"/path/to/output/\" -r 5 -n \"backup_name\""
+    exit 1
+}
+
+
+create_tar_xz() {
+    local excludes=()
+    IFS=';' read -ra EXCLUDE_ARRAY <<< "$EXCLUDES"
+    for exclude in "${EXCLUDE_ARRAY[@]}"; do
+    excludes+=(--exclude="$exclude")
+    done
+    tar -cJf "$1" "${excludes[@]}" -C "$(dirname "$SOURCE_DIR")" "$(basename "$SOURCE_DIR")"
+}
+
+create_tar_gz() {
+    local excludes=()
+    IFS=';' read -ra EXCLUDE_ARRAY <<< "$EXCLUDES"
+    for exclude in "${EXCLUDE_ARRAY[@]}"; do
+    excludes+=(--exclude="$exclude")
+    done
+    tar -czf "$1" "${excludes[@]}" -C "$(dirname "$SOURCE_DIR")" "$(basename "$SOURCE_DIR")"
+}
+
+create_zip() {
+    local exclusions=()
+    IFS=';' read -ra EXCLUDE_ARRAY <<< "$EXCLUDES"
+    for exclude in "${EXCLUDE_ARRAY[@]}"; do
+    exclusions+=("-x" "$exclude")
+    done
+    zip -r "$1" "${exclusions[@]}" "$SOURCE_DIR"
+}
+
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -t|--type)
+            ARCHIVE_TYPE="$2"
+            shift 2
+            ;;
+        -e|--excludes)
+            EXCLUDES="$2"
+            shift 2
+            ;;
+        -o|--output)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        -r|--rotation)
+            ROTATION="$2"
+            shift 2
+            ;;
+        -n|--name)
+            ARCHIVE_NAME="$2"
+            shift 2
+            ;;
+        *)
+            if [[ -z "$SOURCE_DIR" ]]; then
+                SOURCE_DIR="$1"
+            else
+                usage
+            fi
+            shift
+            ;;
+    esac
+done
+
+
+if [[ -z "$SOURCE_DIR" ]]; then
+    echo "Error: No directory specified for backup."
+    usage
+fi
+
+
+if [[ ! -d "$SOURCE_DIR" ]]; then
+    echo "Error: The specified directory does not exist."
+    exit 1
+fi
+
+
+mkdir -p "$OUTPUT_DIR"
+
+
+if [[ -z "$ARCHIVE_NAME" ]]; then
+    ARCHIVE_NAME=$(basename "$SOURCE_DIR")
+fi
+
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+
+case "$ARCHIVE_TYPE" in
+    tar.xz)
+        ARCHIVE_FILE="$OUTPUT_DIR/${ARCHIVE_NAME}_${TIMESTAMP}.tar.xz"
+        create_tar_xz "$ARCHIVE_FILE"
+        ;;
+    tar.gz)
+        ARCHIVE_FILE="$OUTPUT_DIR/${ARCHIVE_NAME}_${TIMESTAMP}.tar.gz"
+        create_tar_gz "$ARCHIVE_FILE"
+        ;;
+    zip)
+        ARCHIVE_FILE="$OUTPUT_DIR/${ARCHIVE_NAME}_${TIMESTAMP}.zip"
+        create_zip "$ARCHIVE_FILE"
+        ;;
+    *)
+        echo "Error: Unsupported archive type: $ARCHIVE_TYPE"
+        exit 1
+        ;;
+esac
+
+
+if [[ ! -z "$ROTATION" && "$ROTATION" =~ ^[0-9]+$ ]]; then
+    ls -t "$OUTPUT_DIR" | grep "${ARCHIVE_NAME}_" | tail -n +$((ROTATION + 1)) | while read -r file; do
+        rm -f "$OUTPUT_DIR/$file"
+    done
+fi
+
+echo "Backup completed. Archive saved at: $ARCHIVE_FILE"
