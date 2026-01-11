@@ -198,6 +198,7 @@ extract() {
 		if [ -f "$archive" ]; then
 			case $archive in
 			*.tar.bz2) tar xvjf $archive ;;
+			*.tar.xz) tar xvf $archive ;;
 			*.tar.gz) tar xvzf $archive ;;
 			*.bz2) bunzip2 $archive ;;
 			*.rar) rar x $archive ;;
