@@ -217,6 +217,33 @@ extract() {
 	done
 }
 
+# Archive file or files
+archive() {
+    if [ "$#" -lt 2 ]; then
+        echo "Usage: archive <archive_name> <file1> [file2 ...]"
+        return 1
+    fi
+
+    archive_name="$1"
+    shift  # Удаляем первый аргумент (имя архива)
+
+    case $archive_name in
+        *.zip) 
+            zip "$archive_name" "$@" 
+            ;;
+        *.tar.gz)
+            tar cvzf "$archive_name" "$@" 
+            ;;
+        *.tar.xz)
+            tar cvfJ "$archive_name" "$@" 
+            ;;
+        *) 
+            echo "Unsupported archive format. Use .zip, .tar.gz, or .tar.xz."
+            return 1
+            ;;
+    esac
+}
+
 # Searches for text in all files in the current folder
 ftext() {
 	# -i case-insensitive
