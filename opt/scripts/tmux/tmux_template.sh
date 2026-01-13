@@ -13,7 +13,8 @@ function init_session {
     tmux has-session -t "$SESSION_NAME" 2>/dev/null
     if [ $? != 0 ]; then
         if [[ -n "$3" ]]; then
-            tmux new-session -d -s "$SESSION_NAME" -n "$WINDOW_NAME" "$3"
+            tmux new-session -d -s "$SESSION_NAME" -n "$WINDOW_NAME" 
+            tmux send-keys -t $SESSION_NAME:$WINDOW_NAME "$3" Enter
             return 0
         else
             tmux new-session -d -s "$SESSION_NAME" -n "$WINDOW_NAME"
@@ -31,7 +32,8 @@ function create_window {
     WINDOW_NAME=$1
     PANE=1
     if [[ -n $2 ]]; then
-        tmux new-window -t "$SESSION_NAME" -n "$WINDOW_NAME" "$2"
+        tmux new-window -t "$SESSION_NAME" -n "$WINDOW_NAME"
+        tmux send-keys -t $SESSION_NAME:$WINDOW_NAME "$2" Enter
         return 1
     else
         tmux new-window -t "$SESSION_NAME" -n "$WINDOW_NAME"
@@ -40,14 +42,16 @@ function create_window {
 }
 
 function vsplit {
-    tmux split-window -v -t "$SESSION_NAME:$WINDOW_NAME.$PANE" $1
+    tmux split-window -v -t "$SESSION_NAME:$WINDOW_NAME.$PANE"
     PANE=$((PANE + 1))
+    tmux send-keys -t $SESSION_NAME:$WINDOW_NAME.$PANE "$1" Enter
     return $PANE
 }
 
 function hsplit {
-    tmux split-window -h -t "$SESSION_NAME:$WINDOW_NAME.$PANE" $1
+    tmux split-window -h -t "$SESSION_NAME:$WINDOW_NAME.$PANE"
     PANE=$((PANE + 1))
+    tmux send-keys -t $SESSION_NAME:$WINDOW_NAME.$PANE "$1" Enter
     return $PANE
 }
 
@@ -71,7 +75,7 @@ function main {
     if init_session $sess "dev" "cd ~ && nvim"; then
         hsplit "htop"
         vsplit
-        create_window "test" "cd ~ && ls -all; bash"
+        create_window "test" "cd ~ && ls -all"
         select_window "dev"
     fi
     attach
