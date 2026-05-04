@@ -231,7 +231,8 @@ ALLOWED_IPS=${ALLOWED_IPS}" >/etc/wireguard/params
 	echo "[Interface]
 Address = ${SERVER_WG_IPV4}/24,${SERVER_WG_IPV6}/64
 ListenPort = ${SERVER_PORT}
-PrivateKey = ${SERVER_PRIV_KEY}" >"/etc/wireguard/${SERVER_WG_NIC}.conf"
+PrivateKey = ${SERVER_PRIV_KEY}
+Table = off" >"/etc/wireguard/${SERVER_WG_NIC}.conf"
 
 	if pgrep firewalld; then
 		FIREWALLD_IPV4_ADDRESS=$(echo "${SERVER_WG_IPV4}" | cut -d"." -f1-3)".0"
