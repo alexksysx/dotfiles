@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Usage: ./mirror https://somesite.com/somerepo.git
+
+REPO=$1
+REPO_NAME="${REPO##*/}"
+STORAGE_PATH="/mnt/bighard/git/"
+SYMLINK_PATH="/home/git/repos/"
+
+cd $STORAGE_PATH
+git clone --mirror $REPO
+cd $SYMLINK_PATH
+ln -s $STORAGE_PATH$REPO_NAME

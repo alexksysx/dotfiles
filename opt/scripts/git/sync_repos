@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Usage ./sync_repos
+# change repos array and REPO_PATH before usage
+
+REPO_PATH="/home/git/repos/"
+repos=("name1.git" "name2.git")
+
+for item in "${repos[@]}"; do
+        cd $REPO_PATH$item && git remote update
+done
