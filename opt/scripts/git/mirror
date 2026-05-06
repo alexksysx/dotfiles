@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Usage: ./mirror https://somesite.com/somerepo.git
 
 REPO=$1

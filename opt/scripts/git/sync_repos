@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Usage ./sync_repos
 # change repos array and REPO_PATH before usage
 
