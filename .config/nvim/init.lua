@@ -28,6 +28,7 @@ require("options")
 -- Map settings
 require("mappings")
 vim.cmd("set keymap=russian-jcukenwin")
+vim.cmd("set langmap=ФИСВУАПРШОЛДЬТЩЗЙКЫЕГМЦЧНЯЖ;ABCDEFGHIJKLMNOPQRSTUVWXYZ:,фисвуапршолдьтщзйкыегмцчня;abcdefghijklmnopqrstuvwxyz")
 vim.cmd("set iminsert=0")
 vim.cmd("set imsearch=0")
 
