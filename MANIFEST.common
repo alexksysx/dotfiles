@@ -1,0 +1,8 @@
+# Shared base: identical on every machine and in every profile.
+# Never deployed directly, pulled in with `include`.
+
+.config/wgetrc|symlink|
+.config/tmux|symlink|
+.bashrc|symlink|
+.gdbinit|symlink|
+.local/scripts|symlink|

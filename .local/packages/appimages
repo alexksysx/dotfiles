@@ -1,0 +1,17 @@
+# AppImage-приложения, управляемые appi (~/.local/bin/appi).
+#
+#   appi sync -n      посмотреть план
+#   appi sync         установить недостающее и выровнять алиасы
+#   appi sync -u      то же + обновить всё из списка
+#   appi sync -p      удалить всё, чего нет в списке
+#
+# Формат: имя  источник(user/repo | URL)  алиасы,через,запятую
+# Одиночное поле = только источник, имя выводится автоматически.
+# Строки с # и пустые игнорируются.
+
+# имя               источник                                            алиасы
+#obsidian           ivan-hc/Obsidian-appimage                           ob,notes
+#appimageupdatetool AppImageCommunity/AppImageUpdate                     aiu
+#freecad            https://.../FreeCAD-1.0-conda-Linux-x86_64.AppImage  cad
+
+neovim              neovim/neovim                                       nvim,vim,v

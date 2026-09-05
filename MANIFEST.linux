@@ -1,7 +1,13 @@
-.config/wgetrc|symlink|
+# Full desktop profile.
+#
+#   ./deploy.sh MANIFEST.linux
+
+MANIFEST.common|include|
+
 .config/user-dirs.dirs|symlink|
 .config/nvim|symlink|
-.config/tmux|symlink|
-.bashrc|symlink|
-.gdbinit|symlink|
-opt|symlink|
+
+# Package lists (arch-pac, arch-aur, appimages): read-only data, safe as a dir.
+.local/packages|symlink|
+
+.local/scripts/system/appi|symlink|.local/bin/appi

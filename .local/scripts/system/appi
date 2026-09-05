@@ -1,0 +1,524 @@
+#!/bin/bash
+# appi - минимальный менеджер AppImage
+#
+#   appi add <url|user/repo> [имя] [-a алиас,...]  установить (URL или GitHub releases)
+#   appi ls                          список установленных и их алиасов
+#   appi up [имя ...]                обновить (zsync, иначе перекачать источник)
+#   appi rm <имя>                    удалить приложение, алиасы и интеграцию
+#   appi run <имя> [args]            запустить
+#   appi info <имя>                  показать метаданные
+#   appi alias <имя> [алиас ...]     добавить алиасы (без аргументов - показать)
+#   appi unalias <алиас ...>         убрать алиасы
+#   appi shellrc                     строка для .zshrc/.bashrc (shell-алиасы)
+#   appi relink                      пересобрать все симлинки и aliases.sh
+#   appi sync [файл] [-n|-u|-p]     привести систему к списку (декларативный режим)
+#   appi export [файл]              выгрузить текущее состояние в такой список
+#
+# Флаги sync: -n/--dry-run — только показать план, -u/--update — ещё и обновить,
+# -p/--prune — удалить всё, чего нет в списке.
+#
+# Формат списка ($APPI_LIST, по умолчанию ~/.local/packages/appimages):
+#   # имя      источник (user/repo или URL)     алиасы,через,запятую
+#   obsidian    ivan-hc/Obsidian                 ob,notes
+#   пустые строки и # — комментарии; можно указать только источник — имя выведётся само
+#
+# Запускать программы можно тремя способами: по имени (симлинк в ~/.local/bin),
+# по любому алиасу (такой же симлинк) или через shell-алиасы из aliases.sh.
+#
+# Раскладка:
+#   $APPI_DIR (~/.local/opt/appimages)   сами .AppImage и .meta файлы
+#   ~/.local/bin/<имя|алиас>             симлинки для запуска из шелла
+#   ~/.local/share/appi/aliases.sh       сгенерированные shell-алиасы
+#   ~/.local/share/applications          .desktop, извлечённый из AppImage
+#   ~/.local/share/icons/hicolor/...     иконка приложения
+
+set -euo pipefail
+shopt -s extglob nullglob
+
+APPI_DIR="${APPI_DIR:-$HOME/.local/opt/appimages}"
+BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
+APP_DIR="$HOME/.local/share/applications"
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+ALIAS_FILE="${APPI_ALIAS_FILE:-$HOME/.local/share/appi/aliases.sh}"
+APPI_LIST="${APPI_LIST:-$HOME/.local/packages/appimages}"
+ARCH="$(uname -m)"
+
+die() { printf '%s\n' "appi: $*" >&2; exit 1; }
+msg() { printf '==> %s\n' "$*"; }
+
+need() { command -v "$1" >/dev/null || die "нужна утилита $1"; }
+
+# --- вспомогательное ------------------------------------------------------
+
+meta_get() { # meta_get <имя> <ключ>
+    local f="$APPI_DIR/$1.meta"
+    [[ -f "$f" ]] || return 1
+    sed -n "s/^$2=//p" "$f"
+}
+
+meta_set() { # meta_set <имя> <ключ> <значение>
+    local f="$APPI_DIR/$1.meta"
+    [[ -f "$f" ]] || die "нет метаданных для '$1'"
+    if grep -q "^$2=" "$f"; then
+        sed -i "s|^$2=.*|$2=$3|" "$f"
+    else
+        printf '%s=%s\n' "$2" "$3" >> "$f"
+    fi
+}
+
+resolve() { # имя -> путь к AppImage
+    local p="$APPI_DIR/$1.AppImage"
+    [[ -f "$p" ]] || die "приложение '$1' не установлено"
+    printf '%s\n' "$p"
+}
+
+# --- алиасы ---------------------------------------------------------------
+
+# Симлинк в ~/.local/bin, но никогда не затираем чужие файлы
+link_bin() { # link_bin <ссылка> <цель>
+    local link="$BIN_DIR/$1" target="$2"
+    mkdir -p "$BIN_DIR"
+    if [[ -e "$link" && ! -L "$link" ]]; then
+        die "'$1' уже существует в $BIN_DIR и это не симлинк"
+    fi
+    if [[ -L "$link" ]]; then
+        local cur; cur=$(readlink -f "$link" || true)
+        [[ "$cur" == "$APPI_DIR"/* ]] || die "'$1' занят симлинком не из appi ($cur)"
+    fi
+    ln -sfn "$target" "$link"
+}
+
+unlink_bin() { # unlink_bin <ссылка>: удаляем только свои симлинки
+    local link="$BIN_DIR/$1" cur
+    [[ -L "$link" ]] || return 0
+    cur=$(readlink -f "$link" || true)
+    [[ "$cur" == "$APPI_DIR"/* ]] && rm -f "$link"
+    return 0
+}
+
+aliases_of() { meta_get "$1" aliases 2>/dev/null || true; }
+
+owner_of_alias() { # owner_of_alias <алиас> -> имя приложения
+    local f name a
+    for f in "$APPI_DIR"/*.meta; do
+        name=$(basename "$f" .meta)
+        for a in $(aliases_of "$name"); do
+            [[ "$a" == "$1" ]] && { printf '%s\n' "$name"; return 0; }
+        done
+    done
+    return 1
+}
+
+# Файл с shell-алиасами: пригодится, если ~/.local/bin нет в PATH
+gen_alias_file() {
+    mkdir -p "$(dirname "$ALIAS_FILE")"
+    { echo "# сгенерировано appi, не редактировать вручную"
+      local f name a
+      for f in "$APPI_DIR"/*.AppImage; do
+          name=$(basename "$f" .AppImage)
+          printf "alias %s='%s'\n" "$name" "$f"
+          for a in $(aliases_of "$name"); do
+              printf "alias %s='%s'\n" "$a" "$f"
+          done
+      done
+    } > "$ALIAS_FILE"
+}
+
+alias_add() { # alias_add <имя> <алиас ...>
+    local name="$1"; shift
+    local img; img=$(resolve "$name")
+    local cur; cur=$(aliases_of "$name")
+    local a owner
+    for a in "$@"; do
+        [[ "$a" =~ ^[A-Za-z0-9._+-]+$ ]] || die "недопустимый алиас '$a'"
+        [[ "$a" == "$name" ]] && { msg "'$a' - это само имя приложения, пропуск"; continue; }
+        [[ -f "$APPI_DIR/$a.AppImage" ]] && die "'$a' - имя другого приложения"
+        owner=$(owner_of_alias "$a" || true)
+        [[ -n "$owner" && "$owner" != "$name" ]] && die "алиас '$a' занят приложением '$owner'"
+        link_bin "$a" "$img"
+        [[ " $cur " == *" $a "* ]] || cur="${cur:+$cur }$a"
+        msg "алиас $a -> $name"
+    done
+    meta_set "$name" aliases "$cur"
+    gen_alias_file
+}
+
+alias_del() { # alias_del <алиас ...>
+    local a name cur new x
+    for a in "$@"; do
+        name=$(owner_of_alias "$a" || true)
+        [[ -n "$name" ]] || { msg "алиас '$a' не найден"; continue; }
+        cur=$(aliases_of "$name"); new=""
+        for x in $cur; do [[ "$x" == "$a" ]] || new="${new:+$new }$x"; done
+        unlink_bin "$a"
+        meta_set "$name" aliases "$new"
+        msg "алиас $a убран (был у $name)"
+    done
+    gen_alias_file
+}
+
+# Имя по источнику: user/repo -> repo, URL -> имя файла без версии
+derive_name() {
+    local src="$1" n
+    if [[ "$src" == http?(s)://* ]]; then
+        n=$(basename "${src%%\?*}")
+        n="${n%.AppImage}"; n="${n%.appimage}"
+        n=$(printf '%s\n' "$n" | sed 's/[-_.]\?[0-9][0-9.]*.*$//;s/[^A-Za-z0-9+-]/-/g')
+    else
+        n="${src#*/}"; n="${n%.AppImage}"
+    fi
+    [[ -n "$n" ]] || die "не смог вывести имя из '$src'"
+    printf '%s\n' "${n,,}"
+}
+
+# Находит asset последнего релиза GitHub, подходящий под архитектуру
+github_url() { # github_url <user/repo>
+    need curl
+    local api="https://api.github.com/repos/$1/releases/latest"
+    local urls
+    urls=$(curl -fsL "$api" 2>/dev/null | grep -o '"browser_download_url": *"[^"]*\.[Aa]pp[Ii]mage"' | cut -d'"' -f4)
+    [[ -n "$urls" ]] || return 1   # сообщение печатает вызывающая сторона
+    # приоритет: точная архитектура, затем всё остальное
+    printf '%s\n' "$urls" | grep -i -- "$ARCH" | head -n1 && return 0
+    printf '%s\n' "$urls" | head -n1
+}
+
+# Интеграция в меню: распаковываем .desktop и иконку из самого AppImage
+integrate() { # integrate <имя>: .desktop и иконка из самого AppImage -> ~/.local/share
+    local name="$1" img="$APPI_DIR/$1.AppImage" tmp rc=0
+    tmp=$(mktemp -d)
+    ( cd "$tmp" && integrate_inner "$name" "$img" "$tmp" ) || rc=$?
+    rm -rf "$tmp"
+    return "$rc"
+}
+
+integrate_inner() {
+    local name="$1" img="$2" tmp="$3" desktop icon icon_name pat
+
+    "$img" --appimage-extract '*.desktop' >/dev/null 2>&1 || true
+    desktop=$(find "$tmp/squashfs-root" -maxdepth 1 -name '*.desktop' 2>/dev/null | head -n1)
+    [[ -n "$desktop" ]] || { msg "$name: .desktop не найден, интеграция пропущена"; return 0; }
+
+    icon_name=$(sed -n 's/^Icon=//p' "$desktop" | head -n1)
+    for pat in "$icon_name.png" ".DirIcon" "usr/share/icons/*"; do
+        [[ -n "$pat" ]] && "$img" --appimage-extract "$pat" >/dev/null 2>&1 || true
+    done
+    # самый крупный настоящий файл (битые симлинки отбрасываются -type f)
+    icon=$(find "$tmp/squashfs-root" \( -name "${icon_name:-icon}.png" -o -name '.DirIcon' \) \
+           -type f -printf '%s %p\n' 2>/dev/null | sort -n | tail -n1 | cut -d' ' -f2-)
+    if [[ -n "$icon" && -f "$icon" ]]; then
+        mkdir -p "$ICON_DIR"
+        cp -Lf "$icon" "$ICON_DIR/appi-$name.png"
+        icon_name="appi-$name"
+    fi
+
+    mkdir -p "$APP_DIR"
+    sed -e "s|^Exec=[^ ]*|Exec=$img|" \
+        -e "s|^TryExec=.*|TryExec=$img|" \
+        -e "s|^Icon=.*|Icon=${icon_name:-application-x-executable}|" \
+        "$desktop" > "$APP_DIR/appi-$name.desktop"
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+    return 0
+}
+
+# --- команды --------------------------------------------------------------
+
+cmd_add() {
+    local src="" name="" url arg new_aliases=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -a|--alias) new_aliases="${new_aliases:+$new_aliases }${2//,/ }"; shift 2 ;;
+            -a=*|--alias=*) arg="${1#*=}"; new_aliases="${new_aliases:+$new_aliases }${arg//,/ }"; shift ;;
+            -*) die "неизвестный флаг '$1'" ;;
+            *) if [[ -z "$src" ]]; then src="$1"; elif [[ -z "$name" ]]; then name="$1"; else die "лишний аргумент '$1'"; fi; shift ;;
+        esac
+    done
+    [[ -n "$src" ]] || die "укажите URL или user/repo"
+    need curl
+
+    if [[ "$src" == http?(s)://* ]]; then
+        url="$src"
+    elif [[ "$src" == */* ]]; then
+        url=$(github_url "$src") || die "в последнем релизе '$src' нет AppImage или репозиторий недоступен"
+        [[ -n "$url" ]] || die "не нашёл AppImage для '$src'"
+        [[ -n "$name" ]] || name="${src#*/}"
+    else
+        die "не понял источник '$src'"
+    fi
+
+    [[ -n "$name" ]] || name=$(derive_name "$url")
+
+    mkdir -p "$APPI_DIR" "$BIN_DIR"
+    local target="$APPI_DIR/$name.AppImage"
+    [[ -e "$target" ]] && die "'$name' уже установлен (appi up $name / appi rm $name)"
+
+    msg "загружаю $name из $url"
+    curl -fL --progress-bar -o "$target.part" "$url"
+    head -c4 "$target.part" | grep -q 'ELF' || { rm -f "$target.part"; die "файл не похож на AppImage"; }
+    mv "$target.part" "$target"
+    chmod +x "$target"
+
+    { echo "name=$name"; echo "url=$url"; echo "source=$src"
+      echo "installed=$(date -Is)"
+      echo "sha256=$(sha256sum "$target" | cut -d' ' -f1)"; } > "$APPI_DIR/$name.meta"
+
+    link_bin "$name" "$target"
+    integrate "$name"
+    # shellcheck disable=SC2086
+    [[ -n "$new_aliases" ]] && alias_add "$name" $new_aliases || gen_alias_file
+    msg "готово: $name (запуск: $name${new_aliases:+, $(printf '%s' "$new_aliases" | tr ' ' ',')})"
+}
+
+cmd_ls() {
+    [[ -d "$APPI_DIR" ]] || { msg "ничего не установлено"; return 0; }
+    shopt -s nullglob
+    local f name size al
+    {
+        printf 'ИМЯ\tРАЗМЕР\tАЛИАСЫ\tИСТОЧНИК\n'
+        for f in "$APPI_DIR"/*.AppImage; do
+            name=$(basename "$f" .AppImage)
+            size=$(du -h "$f" | cut -f1)
+            al=$(aliases_of "$name" | tr ' ' ',')
+            printf '%s\t%s\t%s\t%s\n' "$name" "$size" "${al:--}" "$(meta_get "$name" source || echo -)"
+        done
+    } | { command -v column >/dev/null && column -t -s $'\t' || cat; }
+}
+
+cmd_up() {
+    shopt -s nullglob
+    local names=("$@") f
+    if [[ ${#names[@]} -eq 0 ]]; then
+        for f in "$APPI_DIR"/*.AppImage; do names+=("$(basename "$f" .AppImage)"); done
+    fi
+    local name img old url new
+    for name in "${names[@]}"; do
+        img=$(resolve "$name")
+        old=$(sha256sum "$img" | cut -d' ' -f1)
+
+        # 1) штатный механизм AppImage: zsync-обновление по встроенной инфе
+        if "$img" --appimage-updateinformation >/dev/null 2>&1 && \
+           [[ -n "$("$img" --appimage-updateinformation 2>/dev/null)" ]] && \
+           command -v appimageupdatetool >/dev/null; then
+            msg "$name: zsync-обновление"
+            appimageupdatetool -O "$img" && continue
+        fi
+
+        # 2) иначе перекачиваем по сохранённому источнику
+        local src; src=$(meta_get "$name" source || true)
+        [[ -n "$src" ]] || { msg "$name: источник неизвестен, пропуск"; continue; }
+        if [[ "$src" == */* && "$src" != http?(s)://* ]]; then
+            url=$(github_url "$src") || { msg "$name: нет AppImage в релизах $src, пропуск"; continue; }
+            [[ -n "$url" ]] || { msg "$name: пустой источник, пропуск"; continue; }
+        else
+            url=$(meta_get "$name" url)
+        fi
+        msg "$name: проверяю $url"
+        curl -fL --progress-bar -o "$img.part" "$url"
+        new=$(sha256sum "$img.part" | cut -d' ' -f1)
+        if [[ "$new" == "$old" ]]; then
+            rm -f "$img.part"; msg "$name: уже последняя версия"; continue
+        fi
+        mv "$img.part" "$img"; chmod +x "$img"
+        sed -i "s/^sha256=.*/sha256=$new/;s|^url=.*|url=$url|" "$APPI_DIR/$name.meta"
+        integrate "$name"
+        msg "$name: обновлён"
+    done
+}
+
+cmd_rm() {
+    local name="${1:-}"; [[ -n "$name" ]] || die "укажите имя"
+    resolve "$name" >/dev/null
+    local a
+    for a in $(aliases_of "$name"); do unlink_bin "$a"; done
+    unlink_bin "$name"
+    rm -f "$APPI_DIR/$name.AppImage" "$APPI_DIR/$name.meta" \
+          "$APP_DIR/appi-$name.desktop" "$ICON_DIR/appi-$name.png"
+    gen_alias_file
+    msg "$name удалён"
+}
+
+cmd_run() {
+    local name="${1:-}"; shift || true
+    [[ -n "$name" ]] || die "укажите имя или алиас"
+    # приняли и имя, и алиас
+    [[ -f "$APPI_DIR/$name.AppImage" ]] || name=$(owner_of_alias "$name" || printf '%s' "$name")
+    exec "$(resolve "$name")" "$@"
+}
+
+cmd_alias() {
+    local name="${1:-}"; shift || true
+    [[ -n "$name" ]] || die "использование: appi alias <имя> [алиас ...]"
+    resolve "$name" >/dev/null
+    if [[ $# -eq 0 ]]; then
+        printf '%s\n' "$(aliases_of "$name" | tr ' ' '\n')"
+        return 0
+    fi
+    alias_add "$name" "$@"
+}
+
+cmd_unalias() {
+    [[ $# -gt 0 ]] || die "использование: appi unalias <алиас ...>"
+    alias_del "$@"
+}
+
+cmd_shellrc() {
+    gen_alias_file
+    printf '[ -f %s ] && . %s\n' "$ALIAS_FILE" "$ALIAS_FILE"
+}
+
+relink_all() { # восстановить все симлинки и файл алиасов (после deploy/переноса)
+    local f name a
+    for f in "$APPI_DIR"/*.AppImage; do
+        name=$(basename "$f" .AppImage)
+        link_bin "$name" "$f"
+        for a in $(aliases_of "$name"); do link_bin "$a" "$f"; done
+    done
+    gen_alias_file
+}
+
+cmd_relink() {
+    relink_all
+    msg "симлинки и $ALIAS_FILE обновлены"
+}
+
+# --- декларативный режим ------------------------------------------------
+
+cmd_sync() {
+    local list="" dry=0 update=0 prune=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--dry-run) dry=1; shift ;;
+            -u|--update)  update=1; shift ;;
+            -p|--prune)   prune=1; shift ;;
+            -*) die "неизвестный флаг '$1'" ;;
+            *) [[ -z "$list" ]] && list="$1" || die "лишний аргумент '$1'"; shift ;;
+        esac
+    done
+    list="${list:-$APPI_LIST}"
+    [[ -f "$list" ]] || die "список не найден: $list (создайте его или appi export $list)"
+
+    local pfx=""; [[ $dry -eq 1 ]] && pfx="[dry-run] "
+    msg "${pfx}синхронизация с $list"
+
+    local declared="" line name src al a cur want add drop f
+    while IFS= read -r line <&3 || [[ -n "$line" ]]; do
+        line="${line%%#*}"
+        # shellcheck disable=SC2086
+        set -- $line
+        [[ $# -gt 0 ]] || continue
+
+        if [[ $# -eq 1 ]]; then
+            src="$1"; al=""
+            [[ "$src" == */* ]] || die "строка '$1': одиночное поле должно быть user/repo или URL"
+            name=$(derive_name "$src")
+        else
+            name="$1"; src="$2"; al="${3:-}"
+        fi
+        declared="${declared:+$declared }$name"
+
+        # 1) установка, если нет
+        if [[ ! -f "$APPI_DIR/$name.AppImage" ]]; then
+            if [[ $dry -eq 1 ]]; then
+                msg "[dry-run] установить $name из $src${al:+ (алиасы: $al)}"
+                continue
+            fi
+            # одно неудавшееся приложение не должно рвать всю синхронизацию
+            if [[ -n "$al" ]]; then
+                ( cmd_add "$src" "$name" -a "$al" ) || msg "$name: установка не удалась, продолжаю"
+            else
+                ( cmd_add "$src" "$name" ) || msg "$name: установка не удалась, продолжаю"
+            fi
+            continue
+        fi
+
+        # 2) источник мог измениться в списке
+        if [[ "$(meta_get "$name" source || true)" != "$src" ]]; then
+            if [[ $dry -eq 1 ]]; then
+                msg "[dry-run] $name: источник -> $src"
+            else
+                meta_set "$name" source "$src"
+                msg "$name: источник обновлён на $src"
+            fi
+        fi
+
+        # 3) алиасы ровно такие, как в списке
+        want="${al//,/ }"; cur=$(aliases_of "$name"); add=""; drop=""
+        for a in $want; do [[ " $cur " == *" $a "* ]] || add="${add:+$add }$a"; done
+        for a in $cur;  do [[ " $want " == *" $a "* ]] || drop="${drop:+$drop }$a"; done
+        if [[ -n "$add" || -n "$drop" ]]; then
+            if [[ $dry -eq 1 ]]; then
+                msg "[dry-run] $name: алиасы${add:+ +$add}${drop:+ -$drop}"
+            else
+                # shellcheck disable=SC2086
+                [[ -n "$drop" ]] && alias_del $drop
+                # shellcheck disable=SC2086
+                [[ -n "$add" ]] && alias_add "$name" $add
+            fi
+        fi
+    done 3< "$list"
+
+    # 4) обновление всего заявленного
+    if [[ $update -eq 1 && -n "$declared" ]]; then
+        if [[ $dry -eq 1 ]]; then
+            msg "[dry-run] обновить: $declared"
+        else
+            # shellcheck disable=SC2086
+            cmd_up $declared
+        fi
+    fi
+
+    # 5) лишнее
+    for f in "$APPI_DIR"/*.AppImage; do
+        name=$(basename "$f" .AppImage)
+        [[ " $declared " == *" $name "* ]] && continue
+        if [[ $prune -eq 1 ]]; then
+            [[ $dry -eq 1 ]] && msg "[dry-run] удалить $name" || cmd_rm "$name"
+        else
+            msg "$name не в списке (appi sync --prune чтобы удалить)"
+        fi
+    done
+
+    [[ $dry -eq 1 ]] || { relink_all; msg "синхронизация завершена"; }
+}
+
+cmd_export() {
+    local out="${1:-}" f name src al
+    {
+        printf '# appi: имя  источник  алиасы (appi sync)\n'
+        for f in "$APPI_DIR"/*.AppImage; do
+            name=$(basename "$f" .AppImage)
+            src=$(meta_get "$name" source || meta_get "$name" url || echo '?')
+            al=$(aliases_of "$name" | tr ' ' ',')
+            printf '%-20s %-50s %s\n' "$name" "$src" "$al"
+        done
+    } > "${out:-/dev/stdout}"
+    [[ -n "$out" ]] && msg "список записан в $out"
+    return 0
+}
+
+cmd_info() {
+    local name="${1:-}"; [[ -n "$name" ]] || die "укажите имя"
+    resolve "$name" >/dev/null
+    cat "$APPI_DIR/$name.meta"
+}
+
+usage() { awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; }
+
+case "${1:-}" in
+    add|i|install) shift; cmd_add "$@" ;;
+    ls|list)       shift; cmd_ls "$@" ;;
+    up|update)     shift; cmd_up "$@" ;;
+    rm|remove)     shift; cmd_rm "$@" ;;
+    run)           shift; cmd_run "$@" ;;
+    info)          shift; cmd_info "$@" ;;
+    alias|ln)      shift; cmd_alias "$@" ;;
+    unalias)       shift; cmd_unalias "$@" ;;
+    shellrc)       shift; cmd_shellrc "$@" ;;
+    relink)        shift; cmd_relink "$@" ;;
+    sync)          shift; cmd_sync "$@" ;;
+    export)        shift; cmd_export "$@" ;;
+    ""|-h|--help)  usage ;;
+    *)             die "неизвестная команда '${1}' (appi --help)" ;;
+esac
+
