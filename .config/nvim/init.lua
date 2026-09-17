@@ -22,6 +22,7 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
 TaskTracker = require("task_tracker")
+Maker = require("maker")
 
 -- Options
 require("options")
@@ -49,6 +50,7 @@ vim.opt.termguicolors = true
 require("plugin_calls")
 
 require("extras.lsp")
+require("statusline").setup()
 
 -- local require file, just in case if need some local tweaks
 -- put loc.lua in .config/nvim/lua folder

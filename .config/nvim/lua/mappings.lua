@@ -179,3 +179,8 @@ if TaskTracker then
   map('n', '<leader>il', function() TaskTracker.list() end, { desc = 'List tasks' })
   map('n', '<leader>io', function() TaskTracker.openTaskFromLine() end, { desc = 'Open task by ID' })
 end
+
+if Maker then
+  map('n', '<leader>cc', function() Maker.compile() end, { desc = 'Compile' })
+  map('n', '<leader>ct', function() Maker.run() end, { desc = 'Run' })
+end
