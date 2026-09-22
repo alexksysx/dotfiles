@@ -70,7 +70,7 @@ end, { desc = 'Git add current file' })
 map("n", "<leader>ln", "<cmd>set nu!<CR>", { desc = "toggle line number" })
 map("n", "<leader>lr", "<cmd>set rnu!<CR>", { desc = "toggle relative number" })
 map("n", "<leader>lw", "<cmd>set wrap!<CR>", { desc = "toggle soft-wrap" })
-map("n", "<leader>li", function ()
+map("n", "<leader>li", function()
   if Snacks.indent.enabled then
     Snacks.indent.disable()
   else
@@ -83,11 +83,27 @@ map("n", "<C-l>", "<C-w>l", { desc = "switch window right" })
 map("n", "<C-j>", "<C-w>j", { desc = "switch window down" })
 map("n", "<C-k>", "<C-w>k", { desc = "switch window up" })
 -- buffers
-map('n', '<leader>bl', function() Snacks.picker.buffers() end, { desc = 'Buffers list' })
+map('n', '<leader>bl', function()
+  local active_pickers = Snacks.picker.get({ source = "buffers" })
+  local current_picker = active_pickers[1]
+  if current_picker then
+    current_picker:close()
+  else
+    Snacks.picker.buffers({
+      layout = {
+        preset = "sidebar",
+        position = "left",
+      },
+      auto_close = false,
+      jump = { close = false },
+      focus = "list",
+    })
+  end
+end, { desc = 'Buffers list sidebar' })
+map('n', '<leader>q', function() Snacks.picker.buffers() end, { desc = 'Buffers list' })
 map('n', '<leader>bn', '<cmd>enew<cr>', { desc = 'Create new buffer' })
--- bufferline
-map("n", "H", "<cmd>BufferLineCyclePrev<CR>", { desc = "Prev tab" })
-map("n", "L", "<cmd>BufferLineCycleNext<CR>", { desc = "Prev tab" })
+map("n", "H", "<cmd>bnext<CR>", { desc = "Next buffer" })
+map("n", "L", "<cmd>bprev<CR>", { desc = "Prev buffer" })
 -- splits
 map('n', '<leader>ss', '<cmd>split<cr>', { desc = 'Horizontal split' })
 map('n', '<leader>sv', '<cmd>vsplit<cr>', { desc = 'Vertical split' })

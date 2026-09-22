@@ -7,6 +7,7 @@ return {
       require('mini.icons').setup({
         extension = {
           -- ["clang"] = { glyph = "", hl = "MiniIconsAzure" },
+          ["hpp"] = { glyph = "󰜖", hl = "MiniIconsPurple" },
         },
 
         file = {

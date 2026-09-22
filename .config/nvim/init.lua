@@ -47,10 +47,12 @@ require("lazy").setup({
 
 vim.opt.termguicolors = true
 
-require("plugin_calls")
+-- Catppuccin
+vim.cmd.colorscheme("catppuccin-macchiato")
+--lualine
+vim.o.laststatus = 3
 
 require("extras.lsp")
-require("statusline").setup()
 
 -- local require file, just in case if need some local tweaks
 -- put loc.lua in .config/nvim/lua folder
