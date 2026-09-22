@@ -14,4 +14,4 @@
 #appimageupdatetool AppImageCommunity/AppImageUpdate                     aiu
 #freecad            https://.../FreeCAD-1.0-conda-Linux-x86_64.AppImage  cad
 
-neovim              neovim/neovim                                       nvim,vim,v
+neovim              neovim/neovim@v0.12.5                                       nvim,vim,v

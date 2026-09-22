@@ -1,9 +1,9 @@
 #!/bin/bash
 # appi - минимальный менеджер AppImage
 #
-#   appi add <url|user/repo> [имя] [-a алиас,...]  установить (URL или GitHub releases)
-#   appi ls                          список установленных и их алиасов
-#   appi up [имя ...]                обновить (zsync, иначе перекачать источник)
+#   appi add <src[@версия]> [имя] [-a алиас,...]  установить (URL или GitHub releases)
+#   appi ls                          список установленных, версий и алиасов
+#   appi up [имя ...]                обновить (закреплённые версии не трогает)
 #   appi rm <имя>                    удалить приложение, алиасы и интеграцию
 #   appi run <имя> [args]            запустить
 #   appi info <имя>                  показать метаданные
@@ -11,15 +11,26 @@
 #   appi unalias <алиас ...>         убрать алиасы
 #   appi shellrc                     строка для .zshrc/.bashrc (shell-алиасы)
 #   appi relink                      пересобрать все симлинки и aliases.sh
-#   appi sync [файл] [-n|-u|-p]     привести систему к списку (декларативный режим)
-#   appi export [файл]              выгрузить текущее состояние в такой список
+#   appi versions <src|имя> [N]      последние N релизов GitHub (по умолчанию 10)
+#   appi pick <src|имя> [имя] [-N n] выбрать версию из списка и поставить её
+#   appi pin <имя> <версия|latest>   закрепить/открепить версию
+#   appi sync [файл] [-n|-u|-p]      привести систему к списку (декларативный режим)
+#   appi export [файл]               выгрузить текущее состояние в такой список
 #
 # Флаги sync: -n/--dry-run — только показать план, -u/--update — ещё и обновить,
 # -p/--prune — удалить всё, чего нет в списке.
 #
+# Версии (только для источников вида user/repo):
+#   user/repo          всегда последний релиз, appi up обновляет
+#   user/repo@v1.2.3   закреплённый тег, appi up его не трогает
+#   appi versions user/repo    посмотреть последние релизы
+#   appi pick user/repo        выбрать версию из списка (интерактивно)
+#   $GITHUB_TOKEN, если задан, используется для запросов к API.
+#
 # Формат списка ($APPI_LIST, по умолчанию ~/.local/packages/appimages):
-#   # имя      источник (user/repo или URL)     алиасы,через,запятую
-#   obsidian    ivan-hc/Obsidian                 ob,notes
+#   # имя      источник (user/repo[@версия] или URL)   алиасы,через,запятую
+#   obsidian    ivan-hc/Obsidian                        ob,notes
+#   freecad     FreeCAD/FreeCAD@1.0.0                   cad
 #   пустые строки и # — комментарии; можно указать только источник — имя выведётся само
 #
 # Запускать программы можно тремя способами: по имени (симлинк в ~/.local/bin),
@@ -165,22 +176,94 @@ derive_name() {
         n="${n%.AppImage}"; n="${n%.appimage}"
         n=$(printf '%s\n' "$n" | sed 's/[-_.]\?[0-9][0-9.]*.*$//;s/[^A-Za-z0-9+-]/-/g')
     else
-        n="${src#*/}"; n="${n%.AppImage}"
+        n="${src#*/}"; n="${n%@*}"; n="${n%.AppImage}"
     fi
     [[ -n "$n" ]] || die "не смог вывести имя из '$src'"
     printf '%s\n' "${n,,}"
 }
 
-# Находит asset последнего релиза GitHub, подходящий под архитектуру
-github_url() { # github_url <user/repo>
+# --- GitHub releases ------------------------------------------------------
+
+GH_API="${GH_API:-https://api.github.com}"
+
+gh_get() { # gh_get <path>
     need curl
-    local api="https://api.github.com/repos/$1/releases/latest"
+    local auth=()
+    [[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    curl -fsL "${auth[@]}" -H 'Accept: application/vnd.github+json' "$GH_API/$1" 2>/dev/null
+}
+
+# Значения строкового поля JSON по порядку (JSON на stdin)
+json_field() { grep -o "\"$1\": *\"[^\"]*\"" | sed "s/^\"$1\": *\"//;s/\"$//"; }
+
+# "user/repo@v1.2" -> SRC_REPO / SRC_PIN ("latest", если версия не указана)
+split_src() {
+    SRC_REPO="${1%@*}"
+    SRC_PIN="latest"
+    [[ "$1" == *@* ]] && SRC_PIN="${1##*@}"
+    [[ -n "$SRC_PIN" ]] || SRC_PIN="latest"
+}
+
+# asset под текущую архитектуру из JSON одного релиза
+gh_asset() {
     local urls
-    urls=$(curl -fsL "$api" 2>/dev/null | grep -o '"browser_download_url": *"[^"]*\.[Aa]pp[Ii]mage"' | cut -d'"' -f4)
-    [[ -n "$urls" ]] || return 1   # сообщение печатает вызывающая сторона
-    # приоритет: точная архитектура, затем всё остальное
+    urls=$(printf '%s' "$1" | json_field browser_download_url | grep -i '\.appimage$' || true)
+    [[ -n "$urls" ]] || return 1
     printf '%s\n' "$urls" | grep -i -- "$ARCH" | head -n1 && return 0
     printf '%s\n' "$urls" | head -n1
+}
+
+# gh_release <user/repo> [версия] -> "<тег>\t<url>"
+gh_release() {
+    local repo="$1" tag="${2:-latest}" json path t url
+    if [[ "$tag" == latest ]]; then path="repos/$repo/releases/latest"
+    else                            path="repos/$repo/releases/tags/$tag"; fi
+    json=$(gh_get "$path") || return 1
+    [[ -n "$json" ]] || return 1
+    t=$(printf '%s' "$json" | json_field tag_name | head -n1)
+    url=$(gh_asset "$json") || return 1
+    printf '%s\t%s\n' "${t:-$tag}" "$url"
+}
+
+# gh_versions <user/repo> [N] -> "<тег>\t<дата>\t<pre|->" от новых к старым
+gh_versions() {
+    local repo="$1" n="${2:-10}" json i
+    json=$(gh_get "repos/$repo/releases?per_page=$n") || return 1
+    local -a tags dates pres
+    mapfile -t tags  < <(printf '%s' "$json" | json_field tag_name)
+    mapfile -t dates < <(printf '%s' "$json" | grep -o '"published_at":[^,]*' | sed 's/^"published_at": *//;s/"//g')
+    mapfile -t pres  < <(printf '%s' "$json" | grep -o '"prerelease": *[a-z]*' | sed 's/.*: *//')
+    [[ ${#tags[@]} -gt 0 ]] || return 1
+    for ((i = 0; i < ${#tags[@]}; i++)); do
+        printf '%s\t%s\t%s\n' "${tags[i]}" "${dates[i]:0:10}" \
+            "$([[ "${pres[i]:-false}" == true ]] && echo pre || echo -)"
+    done
+}
+
+# Скачать AppImage в <target> с проверкой, что это исполняемый ELF
+fetch_appimage() { # fetch_appimage <url> <target>
+    curl -fL --progress-bar -o "$2.part" "$1" || { rm -f "$2.part"; return 1; }
+    head -c4 "$2.part" | grep -q 'ELF' || { rm -f "$2.part"; msg "$(basename "$2"): скачанный файл не похож на AppImage"; return 1; }
+    mv "$2.part" "$2"
+    chmod +x "$2"
+}
+
+# Поставить конкретную версию поверх установленной
+switch_version() { # switch_version <имя> <версия|latest>
+    local name="$1" want="$2" repo img t url cur
+    repo=$(meta_get "$name" repo || true)
+    [[ -n "$repo" ]] || die "$name: источник не GitHub-репозиторий, версии недоступны"
+    IFS=$'\t' read -r t url < <(gh_release "$repo" "$want") \
+        || die "$name: релиз '$want' не найден в $repo (appi versions $name)"
+    img="$APPI_DIR/$name.AppImage"
+    cur=$(meta_get "$name" version || true)
+    msg "$name: ${cur:-?} -> $t"
+    fetch_appimage "$url" "$img" || die "$name: не удалось скачать $t"
+    meta_set "$name" version "$t"
+    meta_set "$name" url "$url"
+    meta_set "$name" sha256 "$(sha256sum "$img" | cut -d' ' -f1)"
+    integrate "$name"
+    link_bin "$name" "$img"
 }
 
 # Интеграция в меню: распаковываем .desktop и иконку из самого AppImage
@@ -225,7 +308,7 @@ integrate_inner() {
 # --- команды --------------------------------------------------------------
 
 cmd_add() {
-    local src="" name="" url arg new_aliases=""
+    local src="" name="" url arg new_aliases="" repo="" pin="-" ver=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -a|--alias) new_aliases="${new_aliases:+$new_aliases }${2//,/ }"; shift 2 ;;
@@ -234,15 +317,18 @@ cmd_add() {
             *) if [[ -z "$src" ]]; then src="$1"; elif [[ -z "$name" ]]; then name="$1"; else die "лишний аргумент '$1'"; fi; shift ;;
         esac
     done
-    [[ -n "$src" ]] || die "укажите URL или user/repo"
+    [[ -n "$src" ]] || die "укажите URL или user/repo[@версия]"
     need curl
 
     if [[ "$src" == http?(s)://* ]]; then
         url="$src"
     elif [[ "$src" == */* ]]; then
-        url=$(github_url "$src") || die "в последнем релизе '$src' нет AppImage или репозиторий недоступен"
-        [[ -n "$url" ]] || die "не нашёл AppImage для '$src'"
-        [[ -n "$name" ]] || name="${src#*/}"
+        split_src "$src"
+        repo="$SRC_REPO"; pin="$SRC_PIN"
+        IFS=$'\t' read -r ver url < <(gh_release "$repo" "$pin") \
+            || die "в релизе '$pin' репозитория '$repo' нет AppImage или он недоступен (appi versions $repo)"
+        [[ -n "$url" ]] || die "не нашёл AppImage для '$repo'"
+        [[ -n "$name" ]] || name="${repo#*/}"
     else
         die "не понял источник '$src'"
     fi
@@ -251,15 +337,13 @@ cmd_add() {
 
     mkdir -p "$APPI_DIR" "$BIN_DIR"
     local target="$APPI_DIR/$name.AppImage"
-    [[ -e "$target" ]] && die "'$name' уже установлен (appi up $name / appi rm $name)"
+    [[ -e "$target" ]] && die "'$name' уже установлен (appi up $name / appi pin $name <версия> / appi rm $name)"
 
-    msg "загружаю $name из $url"
-    curl -fL --progress-bar -o "$target.part" "$url"
-    head -c4 "$target.part" | grep -q 'ELF' || { rm -f "$target.part"; die "файл не похож на AppImage"; }
-    mv "$target.part" "$target"
-    chmod +x "$target"
+    msg "загружаю $name${ver:+ $ver} из $url"
+    fetch_appimage "$url" "$target" || die "не удалось скачать $name"
 
     { echo "name=$name"; echo "url=$url"; echo "source=$src"
+      echo "repo=$repo"; echo "pin=$pin"; echo "version=$ver"
       echo "installed=$(date -Is)"
       echo "sha256=$(sha256sum "$target" | cut -d' ' -f1)"; } > "$APPI_DIR/$name.meta"
 
@@ -267,20 +351,24 @@ cmd_add() {
     integrate "$name"
     # shellcheck disable=SC2086
     [[ -n "$new_aliases" ]] && alias_add "$name" $new_aliases || gen_alias_file
-    msg "готово: $name (запуск: $name${new_aliases:+, $(printf '%s' "$new_aliases" | tr ' ' ',')})"
+    msg "готово: $name${ver:+ ($ver)}$([[ "$pin" != latest && "$pin" != - ]] && printf ', версия закреплена')"
 }
 
 cmd_ls() {
     [[ -d "$APPI_DIR" ]] || { msg "ничего не установлено"; return 0; }
     shopt -s nullglob
-    local f name size al
+    local f name size al ver pin
     {
-        printf 'ИМЯ\tРАЗМЕР\tАЛИАСЫ\tИСТОЧНИК\n'
+        printf 'ИМЯ\tВЕРСИЯ\tРАЗМЕР\tАЛИАСЫ\tИСТОЧНИК\n'
         for f in "$APPI_DIR"/*.AppImage; do
             name=$(basename "$f" .AppImage)
             size=$(du -h "$f" | cut -f1)
             al=$(aliases_of "$name" | tr ' ' ',')
-            printf '%s\t%s\t%s\t%s\n' "$name" "$size" "${al:--}" "$(meta_get "$name" source || echo -)"
+            ver=$(meta_get "$name" version 2>/dev/null || echo -)
+            pin=$(meta_get "$name" pin 2>/dev/null || echo -)
+            [[ "$pin" != latest && "$pin" != - && -n "$pin" ]] && ver="${ver} (pin)"
+            printf '%s\t%s\t%s\t%s\t%s\n' "$name" "${ver:--}" "$size" "${al:--}" \
+                "$(meta_get "$name" source || echo -)"
         done
     } | { command -v column >/dev/null && column -t -s $'\t' || cat; }
 }
@@ -291,12 +379,43 @@ cmd_up() {
     if [[ ${#names[@]} -eq 0 ]]; then
         for f in "$APPI_DIR"/*.AppImage; do names+=("$(basename "$f" .AppImage)"); done
     fi
-    local name img old url new
+    local name img old url new repo pin cur tag
     for name in "${names[@]}"; do
         img=$(resolve "$name")
+        migrate_meta "$name" || true
+        repo=$(meta_get "$name" repo || true)
+        pin=$(meta_get "$name" pin || echo latest)
+        cur=$(meta_get "$name" version || true)
+
+        # 0) закреплённая версия: обновлять нечего
+        if [[ -n "$repo" && -n "$pin" && "$pin" != latest && "$pin" != - ]]; then
+            if [[ "$cur" == "$pin" ]]; then
+                msg "$name: закреплён на $pin (appi pin $name latest — открепить)"
+            else
+                ( switch_version "$name" "$pin" ) || msg "$name: не смог поставить $pin, пропуск"
+            fi
+            continue
+        fi
+
+        # 1) GitHub-репозиторий: сравниваем теги релизов
+        if [[ -n "$repo" ]]; then
+            if ! IFS=$'\t' read -r tag url < <(gh_release "$repo" latest); then
+                msg "$name: нет AppImage в релизах $repo, пропуск"; continue
+            fi
+            if [[ -n "$cur" && "$tag" == "$cur" ]]; then
+                msg "$name: уже последняя версия ($tag)"; continue
+            fi
+            if ( switch_version "$name" "$tag" ); then
+                msg "$name: обновлён до $tag"
+            else
+                msg "$name: обновление не удалось, пропуск"
+            fi
+            continue
+        fi
+
         old=$(sha256sum "$img" | cut -d' ' -f1)
 
-        # 1) штатный механизм AppImage: zsync-обновление по встроенной инфе
+        # 2) штатный механизм AppImage: zsync-обновление по встроенной инфе
         if "$img" --appimage-updateinformation >/dev/null 2>&1 && \
            [[ -n "$("$img" --appimage-updateinformation 2>/dev/null)" ]] && \
            command -v appimageupdatetool >/dev/null; then
@@ -304,15 +423,9 @@ cmd_up() {
             appimageupdatetool -O "$img" && continue
         fi
 
-        # 2) иначе перекачиваем по сохранённому источнику
-        local src; src=$(meta_get "$name" source || true)
-        [[ -n "$src" ]] || { msg "$name: источник неизвестен, пропуск"; continue; }
-        if [[ "$src" == */* && "$src" != http?(s)://* ]]; then
-            url=$(github_url "$src") || { msg "$name: нет AppImage в релизах $src, пропуск"; continue; }
-            [[ -n "$url" ]] || { msg "$name: пустой источник, пропуск"; continue; }
-        else
-            url=$(meta_get "$name" url)
-        fi
+        # 3) иначе перекачиваем по сохранённому URL
+        url=$(meta_get "$name" url || true)
+        [[ -n "$url" ]] || { msg "$name: источник неизвестен, пропуск"; continue; }
         msg "$name: проверяю $url"
         curl -fL --progress-bar -o "$img.part" "$url"
         new=$(sha256sum "$img.part" | cut -d' ' -f1)
@@ -320,7 +433,7 @@ cmd_up() {
             rm -f "$img.part"; msg "$name: уже последняя версия"; continue
         fi
         mv "$img.part" "$img"; chmod +x "$img"
-        sed -i "s/^sha256=.*/sha256=$new/;s|^url=.*|url=$url|" "$APPI_DIR/$name.meta"
+        meta_set "$name" sha256 "$new"
         integrate "$name"
         msg "$name: обновлён"
     done
@@ -382,6 +495,129 @@ cmd_relink() {
     msg "симлинки и $ALIAS_FILE обновлены"
 }
 
+# --- версии ---------------------------------------------------------------
+
+# Старые .meta (до появления версий) не знают про repo/pin — выводим из source
+migrate_meta() { # migrate_meta <имя>
+    local name="$1" src repo
+    repo=$(meta_get "$name" repo 2>/dev/null || true)
+    [[ -z "$repo" ]] || return 0
+    src=$(meta_get "$name" source 2>/dev/null || true)
+    [[ -n "$src" && "$src" != http?(s)://* && "$src" == */* ]] || return 0
+    split_src "$src"
+    meta_set "$name" repo "$SRC_REPO"
+    meta_set "$name" pin "$SRC_PIN"
+}
+
+# Определить репозиторий по аргументу: user/repo[@версия] или имя установленного
+resolve_repo() { # resolve_repo <src|имя> -> repo (в REPO_PIN — версия из аргумента)
+    local what="$1"
+    REPO_PIN=""
+    if [[ "$what" == */* && "$what" != http?(s)://* ]]; then
+        split_src "$what"
+        REPO_PIN="$SRC_PIN"
+        printf '%s\n' "$SRC_REPO"
+        return 0
+    fi
+    migrate_meta "$what" 2>/dev/null || true
+    local repo; repo=$(meta_get "$what" repo 2>/dev/null || true)
+    [[ -n "$repo" ]] || die "'$what': не установлен или источник не GitHub-репозиторий"
+    printf '%s\n' "$repo"
+}
+
+# Таблица релизов; при известном приложении помечает установленную/закреплённую
+print_versions() { # print_versions <repo> <N> [имя]
+    local repo="$1" n="$2" name="${3:-}" list cur="" pin="" i=0 tag date pre mark
+    list=$(gh_versions "$repo" "$n") || die "не смог получить релизы $repo (лимит API? задайте GITHUB_TOKEN)"
+    if [[ -n "$name" ]]; then
+        cur=$(meta_get "$name" version 2>/dev/null || true)
+        pin=$(meta_get "$name" pin 2>/dev/null || true)
+    fi
+    {
+        printf '#\tВЕРСИЯ\tДАТА\tПРИМЕЧАНИЕ\n'
+        while IFS=$'\t' read -r tag date pre; do
+            i=$((i + 1)); mark=""
+            [[ -n "$cur" && "$tag" == "$cur" ]] && mark="установлена"
+            [[ -n "$pin" && "$pin" != latest && "$pin" != - && "$tag" == "$pin" ]] && mark="${mark:+$mark, }закреплена"
+            [[ "$pre" == pre ]] && mark="${mark:+$mark, }pre-release"
+            printf '%s\t%s\t%s\t%s\n' "$i" "$tag" "$date" "${mark:--}"
+        done < <(printf '%s\n' "$list")
+    } | { command -v column >/dev/null && column -t -s $'\t' || cat; }
+}
+
+cmd_versions() {
+    local what="${1:-}" n="${2:-10}" repo name=""
+    [[ -n "$what" ]] || die "использование: appi versions <user/repo|имя> [сколько]"
+    repo=$(resolve_repo "$what")
+    [[ "$what" == */* ]] || name="$what"
+    print_versions "$repo" "$n" "$name"
+}
+
+cmd_pick() {
+    local what="" name="" n=10 new_aliases="" arg repo tag list ans
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -a|--alias) new_aliases="${new_aliases:+$new_aliases }${2//,/ }"; shift 2 ;;
+            -a=*|--alias=*) arg="${1#*=}"; new_aliases="${new_aliases:+$new_aliases }${arg//,/ }"; shift ;;
+            -N|--count) n="$2"; shift 2 ;;
+            -N=*|--count=*) n="${1#*=}"; shift ;;
+            -*) die "неизвестный флаг '$1'" ;;
+            *) if [[ -z "$what" ]]; then what="$1"; elif [[ -z "$name" ]]; then name="$1"; else die "лишний аргумент '$1'"; fi; shift ;;
+        esac
+    done
+    [[ -n "$what" ]] || die "использование: appi pick <user/repo|имя> [имя] [-N сколько] [-a алиас,...]"
+    repo=$(resolve_repo "$what")
+    [[ -n "$name" ]] || { [[ "$what" == */* ]] && name="${repo#*/}" || name="$what"; }
+
+    print_versions "$repo" "$n" "$([[ -f "$APPI_DIR/$name.AppImage" ]] && printf '%s' "$name")"
+    list=$(gh_versions "$repo" "$n")
+    read -r -p "номер версии [1, q — отмена]: " ans || true
+    ans="${ans:-1}"
+    [[ "$ans" == q ]] && { msg "отменено"; return 0; }
+    [[ "$ans" =~ ^[0-9]+$ ]] || die "нужен номер из списка"
+    tag=$(printf '%s\n' "$list" | sed -n "${ans}p" | cut -f1)
+    [[ -n "$tag" ]] || die "нет версии под номером $ans"
+
+    if [[ -f "$APPI_DIR/$name.AppImage" ]]; then
+        cmd_pin "$name" "$tag"
+    else
+        # shellcheck disable=SC2086
+        if [[ -n "$new_aliases" ]]; then
+            cmd_add "$repo@$tag" "$name" -a "$(printf '%s' "$new_aliases" | tr ' ' ',')"
+        else
+            cmd_add "$repo@$tag" "$name"
+        fi
+    fi
+}
+
+cmd_pin() {
+    local name="${1:-}" want="${2:-}" repo cur
+    [[ -n "$name" && -n "$want" ]] || die "использование: appi pin <имя> <версия|latest>"
+    resolve "$name" >/dev/null
+    migrate_meta "$name" || true
+    repo=$(meta_get "$name" repo || true)
+    [[ -n "$repo" ]] || die "$name: источник не GitHub-репозиторий, закреплять нечего"
+    cur=$(meta_get "$name" version || true)
+
+    if [[ "$want" == latest ]]; then
+        meta_set "$name" pin latest
+        meta_set "$name" source "$repo"
+        msg "$name: версия откреплена, беру последний релиз"
+        cmd_up "$name"
+        return 0
+    fi
+
+    meta_set "$name" pin "$want"
+    meta_set "$name" source "$repo@$want"
+    if [[ "$cur" == "$want" ]]; then
+        msg "$name: уже $want, версия закреплена"
+    else
+        switch_version "$name" "$want"
+        gen_alias_file
+        msg "$name: закреплён на $want"
+    fi
+}
+
 # --- декларативный режим ------------------------------------------------
 
 cmd_sync() {
@@ -401,7 +637,7 @@ cmd_sync() {
     local pfx=""; [[ $dry -eq 1 ]] && pfx="[dry-run] "
     msg "${pfx}синхронизация с $list"
 
-    local declared="" line name src al a cur want add drop f
+    local declared="" line name src al a cur want add drop f curver
     while IFS= read -r line <&3 || [[ -n "$line" ]]; do
         line="${line%%#*}"
         # shellcheck disable=SC2086
@@ -439,6 +675,24 @@ cmd_sync() {
             else
                 meta_set "$name" source "$src"
                 msg "$name: источник обновлён на $src"
+            fi
+        fi
+
+        # 2a) версия из списка: user/repo@тег закрепляем, без тега — latest
+        if [[ "$src" != http?(s)://* && "$src" == */* ]]; then
+            split_src "$src"
+            if [[ $dry -eq 0 ]]; then
+                meta_set "$name" repo "$SRC_REPO"
+                meta_set "$name" pin "$SRC_PIN"
+            fi
+            curver=$(meta_get "$name" version || true)
+            if [[ "$SRC_PIN" != latest && "$SRC_PIN" != "$curver" ]]; then
+                if [[ $dry -eq 1 ]]; then
+                    msg "[dry-run] $name: версия ${curver:-?} -> $SRC_PIN"
+                else
+                    ( switch_version "$name" "$SRC_PIN" ) \
+                        || msg "$name: не смог поставить $SRC_PIN, продолжаю"
+                fi
             fi
         fi
 
@@ -483,14 +737,25 @@ cmd_sync() {
 }
 
 cmd_export() {
-    local out="${1:-}" f name src al
+    local out="${1:-}" f name src al repo pin ver
     {
-        printf '# appi: имя  источник  алиасы (appi sync)\n'
+        printf '# appi: имя  источник[@версия]  алиасы (appi sync)\n'
         for f in "$APPI_DIR"/*.AppImage; do
             name=$(basename "$f" .AppImage)
             src=$(meta_get "$name" source || meta_get "$name" url || echo '?')
+            repo=$(meta_get "$name" repo 2>/dev/null || true)
+            pin=$(meta_get "$name" pin 2>/dev/null || true)
+            ver=$(meta_get "$name" version 2>/dev/null || true)
+            if [[ -n "$repo" ]]; then
+                if [[ -n "$pin" && "$pin" != latest && "$pin" != - ]]; then
+                    src="$repo@$pin"
+                else
+                    src="$repo"
+                fi
+            fi
             al=$(aliases_of "$name" | tr ' ' ',')
-            printf '%-20s %-50s %s\n' "$name" "$src" "$al"
+            printf '%-20s %-50s %-20s%s\n' "$name" "$src" "$al" \
+                "${ver:+  # установлено: $ver}"
         done
     } > "${out:-/dev/stdout}"
     [[ -n "$out" ]] && msg "список записан в $out"
@@ -516,6 +781,9 @@ case "${1:-}" in
     unalias)       shift; cmd_unalias "$@" ;;
     shellrc)       shift; cmd_shellrc "$@" ;;
     relink)        shift; cmd_relink "$@" ;;
+    versions|ver)  shift; cmd_versions "$@" ;;
+    pick)          shift; cmd_pick "$@" ;;
+    pin)           shift; cmd_pin "$@" ;;
     sync)          shift; cmd_sync "$@" ;;
     export)        shift; cmd_export "$@" ;;
     ""|-h|--help)  usage ;;
