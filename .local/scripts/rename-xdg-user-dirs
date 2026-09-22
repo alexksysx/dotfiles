@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Rename existing XDG user directories to targets from user-dirs.dirs.
+# Recognizes common English and Russian source directory names, including Projects.
+# Usage: ./rename-xdg-user-dirs.sh [path/to/user-dirs.dirs]
+# By default, uses ~/.config/user-dirs.dirs.
+
+set -Eeuo pipefail
+
+config_file=${1:-"$HOME/.config/user-dirs.dirs"}
+
+if [[ ! -r $config_file ]]; then
+    printf 'Error: cannot read %q\n' "$config_file" >&2
+    exit 1
+fi
+
+home=${HOME%/}
+declare -A candidates_by_key=(
+    [XDG_DESKTOP_DIR]='Desktop|Рабочий стол'
+    [XDG_DOWNLOAD_DIR]='Downloads|Загрузки'
+    [XDG_TEMPLATES_DIR]='Templates|Шаблоны'
+    [XDG_PUBLICSHARE_DIR]='Public|Общедоступные|Общие'
+    [XDG_DOCUMENTS_DIR]='Documents|Документы'
+    [XDG_MUSIC_DIR]='Music|Музыка'
+    [XDG_PICTURES_DIR]='Pictures|Изображения|Картинки'
+    [XDG_VIDEOS_DIR]='Videos|Видео'
+    [XDG_PROJECTS_DIR]='Projects|projects|Проекты'
+)
+
+declare -A seen_targets=()
+
+find_source() {
+    local key=$1 target=$2 name candidate
+    IFS='|' read -r -a names <<< "${candidates_by_key[$key]}"
+
+    for name in "${names[@]}"; do
+        candidate="$home/$name"
+        [[ $candidate == "$target" ]] && continue
+        if [[ -e $candidate || -L $candidate ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line =~ ^[[:space:]]*# || -z ${line//[[:space:]]/} ]] && continue
+
+    if [[ $line =~ ^[[:space:]]*(XDG_(DESKTOP|DOWNLOAD|TEMPLATES|PUBLICSHARE|DOCUMENTS|MUSIC|PICTURES|VIDEOS|PROJECTS)_DIR)=\"(.*)\"[[:space:]]*$ ]]; then
+        key=${BASH_REMATCH[1]}
+        raw_target=${BASH_REMATCH[3]}
+    else
+        continue
+    fi
+
+    target=${raw_target//\$HOME/$home}
+    target=${target//\${HOME}/$home}
+
+    if [[ $target != /* ]]; then
+        printf 'Skipping %s: target is not absolute: %s\n' "$key" "$target" >&2
+        continue
+    fi
+
+    if [[ -n ${seen_targets[$target]+x} ]]; then
+        printf 'Skipping %s: duplicate target: %s\n' "$key" "$target" >&2
+        continue
+    fi
+    seen_targets[$target]=1
+
+    if [[ -e $target || -L $target ]]; then
+        printf 'OK: target already exists for %s: %s\n' "$key" "$target"
+        continue
+    fi
+
+    if ! source=$(find_source "$key" "$target"); then
+        printf 'Skip: no known source directory found for %s\n' "$key"
+        continue
+    fi
+
+    mkdir -p -- "$(dirname -- "$target")"
+    printf 'Rename: %s -> %s\n' "$source" "$target"
+    mv -- "$source" "$target"
+done < "$config_file"
+
