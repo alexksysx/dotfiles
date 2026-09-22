@@ -28,8 +28,22 @@ declare -A candidates_by_key=(
 
 declare -A seen_targets=()
 
+expand_target() {
+    local raw=$1
+
+    case $raw in
+        '$HOME') printf '%s\n' "$home" ;;
+        '$HOME/'*) printf '%s/%s\n' "$home" "${raw#\$HOME/}" ;;
+        '${HOME}') printf '%s\n' "$home" ;;
+        '${HOME}/'*) printf '%s/%s\n' "$home" "${raw#\$\{HOME\}/}" ;;
+        /*) printf '%s\n' "$raw" ;;
+        *) return 1 ;;
+    esac
+}
+
 find_source() {
     local key=$1 target=$2 name candidate
+    local -a names
     IFS='|' read -r -a names <<< "${candidates_by_key[$key]}"
 
     for name in "${names[@]}"; do
@@ -54,11 +68,18 @@ while IFS= read -r line || [[ -n $line ]]; do
         continue
     fi
 
-    target=${raw_target//\$HOME/$home}
-    target=${target//\${HOME}/$home}
+    if ! target=$(expand_target "$raw_target"); then
+        printf 'Skipping %s: unsupported target format: %s\n' "$key" "$raw_target" >&2
+        continue
+    fi
 
     if [[ $target != /* ]]; then
         printf 'Skipping %s: target is not absolute: %s\n' "$key" "$target" >&2
+        continue
+    fi
+
+    if [[ $target == "$home" || $target == / ]]; then
+        printf 'Skipping %s: unsafe target: %s\n' "$key" "$target" >&2
         continue
     fi
 
@@ -78,8 +99,6 @@ while IFS= read -r line || [[ -n $line ]]; do
         continue
     fi
 
-    mkdir -p -- "$(dirname -- "$target")"
     printf 'Rename: %s -> %s\n' "$source" "$target"
     mv -- "$source" "$target"
 done < "$config_file"
-
