@@ -4,5 +4,6 @@
 .config/wgetrc|symlink|
 .config/tmux|symlink|
 .bashrc|symlink|
+.bash_aliases|symlink|
 .gdbinit|symlink|
 .local/scripts|symlink|
